@@ -66,9 +66,7 @@ class _FormularioState extends State<Formulario> {
       final prefs = await SharedPreferences.getInstance();
       final userGuardado = prefs.getString("user");
 
-      if (userGuardado == null) {
-        throw Exception("Debes iniciar sesión para agendar un servicio.");
-      }
+
 
       // Simular el SweetAlert de éxito
       await _mostrarAlerta("Datos validados", "Redirigiendo a la confirmación final...", true);

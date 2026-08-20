@@ -29,15 +29,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userString = prefs.getString("user");
 
-      if (userString == null) {
-        throw Exception("No se encontró la sesión del usuario. Por favor, inicia sesión nuevamente.");
-      }
-
-      // Equivalente a JSON.parse() de React
-      final userGuardado = jsonDecode(userString);
 
       final int idEstadoPendiente = 1;
       final int idCategoria = datos['categoria'] == "Industrial" ? 1 : 2;
@@ -51,7 +43,6 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
         "fecha_solicitud": datos['fechaSeleccionada'],
         "descripcion": datos['descripcion'],
         "direccion_servicio": datos['direccion'],
-        "usuario_id_cliente": userGuardado['id'],
         "id_estado_solicitud": idEstadoPendiente,
         "usuario_id_administrador": idAdministrador
       };

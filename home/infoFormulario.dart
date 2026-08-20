@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'Formulario.dart';
 import 'ValidarServicio.dart';
+import 'ServicioConfirmado.dart';
 
 void main() {
   runApp(const MiApp());
@@ -20,7 +21,8 @@ class MiApp extends StatelessWidget {
       routes: {
         '/': (context) => const InformacionPaso1(),
         '/Formulario': (context) => const Formulario(),
-        '/ValidarServicio' : (context) => const ValidarInformacion(),
+        '/ValidarInformacion' : (context) => const ValidarInformacion(),
+        '/ServicioConfirmado' : (context) => const ServicioConfirmado(),
 
         // Más adelante puedes registrar la siguiente:
         // '/ValidarInformacion': (context) => const ValidarInformacion(),
