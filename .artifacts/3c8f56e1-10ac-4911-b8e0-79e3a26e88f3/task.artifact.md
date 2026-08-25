@@ -1,0 +1,7 @@
+- `[x]` Crear el modelo `Solicitud` en `lib/models/solicitud_model.dart`
+- `[x]` Crear el servicio `SolicitudService` en `lib/services/solicitud_service.dart`
+- `[x]` Integrar `SolicitudService` en `lib/screens/home/home_screen.dart`
+    - `[x]` Cargar datos reales al iniciar
+    - `[x]` Actualizar estadísticas del dashboard
+    - `[x]` Mostrar lista de solicitudes en la vista de reservas
+- `[x]` Verificar compilación y flujo de datos
