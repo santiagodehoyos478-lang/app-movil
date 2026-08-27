@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -35,13 +37,23 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
     setState(() => _loading = true);
     await Future.delayed(const Duration(seconds: 1));
+    
+    // Persistencia de sesión tras registro
+    final prefs = await SharedPreferences.getInstance();
+    final userData = {
+      'email': _emailController.text,
+      'nombre': _nombre1Controller.text,
+      'id': DateTime.now().millisecondsSinceEpoch, // Mock ID
+    };
+    await prefs.setString('user', jsonEncode(userData));
+
     setState(() => _loading = false);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Registro Exitoso!')),
+        const SnackBar(content: Text('¡Registro Exitoso! Bienvenido.')),
       );
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     }
   }
 

@@ -1,46 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:app_movil_serviat/screens/home/registro_screen.dart';
-import '../../widgets/infoFormulario.dart';
-import 'Formulario.dart';
-class ServiatApp extends StatelessWidget {
-  const ServiatApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AR Servicio Técnico',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFF2448B5),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: IconThemeData(color: Colors.black87),
-        ),
-      ),
-
-        initialRoute: '/',
-
-        // 2. Creamos el mapa de rutas
-        routes: {
-          '/': (context) => const HomePage(),
-          '/infoFormulario': (context) => const InformacionPaso1(),
-          '/registro_screen': (context) => const RegistroScreen(),
-          '/Formulario': (context) => const Formulario(),
-        },
-      );
-    }
-}
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 //clase para el menu
-class CustomMenuDrawer extends StatelessWidget {
+class CustomMenuDrawer extends StatefulWidget {
   const CustomMenuDrawer({super.key});
+
+  @override
+  State<CustomMenuDrawer> createState() => _CustomMenuDrawerState();
+}
+
+class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
+  Map<String, dynamic>? _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString('user');
+    if (userStr != null) {
+      setState(() {
+        _userData = jsonDecode(userStr);
+      });
+    }
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user');
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Drawer(
       backgroundColor: Colors.white,
-      child: SafeArea( // evita que el menu se monte sobre la barra de estado del celular
+      child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -59,39 +60,96 @@ class CustomMenuDrawer extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.black87),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
+              // PERFIL DE USUARIO (Visual Guide)
+              if (_userData != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F4FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF2448B5).withOpacity(0.1)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: const Color(0xFF2448B5),
+                        child: Text(
+                          _userData!['nombre']?[0].toUpperCase() ?? 'U',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _userData!['nombre'] ?? 'Usuario',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              _userData!['email'] ?? '',
+                              style: const TextStyle(color: Colors.black54, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
               // opciones
               _buildMenuItem(
                 'Inicio',
                 isPrimary: true,
-                onTap: () => Navigator.pushNamed(context, '/'), // O la ruta principal que prefieras
+                onTap: () => Navigator.pushNamed(context, '/'),
               ),
 
-        const SizedBox(height: 10),
-        _buildMenuItem(
-          'Acerca de Nosotros',
-          isPrimary: false,
-          onTap: () {},
-        ),
-        const SizedBox(height: 10),
-        _buildMenuItem(
-          'Reservar',
-          isPrimary: false,
-          onTap: () => Navigator.pushNamed(context, '/infoFormulario'),
-        ),
-        const SizedBox(height: 10),
-        _buildMenuItem(
-          'Registrarse',
-          isPrimary: false,
-          onTap: () => Navigator.pushNamed(context, '/registro_screen'),
-        ),
+              const SizedBox(height: 10),
+              _buildMenuItem(
+                'Acerca de Nosotros',
+                isPrimary: false,
+                onTap: () {},
+              ),
+              const SizedBox(height: 10),
+              _buildMenuItem(
+                'Reservar',
+                isPrimary: false,
+                onTap: () => Navigator.pushNamed(context, '/infoFormulario'),
+              ),
+              
+              if (_userData == null) ...[
+                const SizedBox(height: 10),
+                _buildMenuItem(
+                  'Registrarse',
+                  isPrimary: false,
+                  onTap: () => Navigator.pushNamed(context, '/registro'),
+                ),
+                const SizedBox(height: 10),
+                _buildMenuItem(
+                  'Iniciar Sesión',
+                  isPrimary: true,
+                  onTap: () => Navigator.pushNamed(context, '/login'),
+                ),
+              ] else ...[
+                const Spacer(),
+                const Divider(),
+                _buildMenuItem(
+                  'Cerrar Sesión',
+                  isPrimary: false,
+                  onTap: _logout,
+                ),
+              ],
             ],
           ),
         ),
@@ -100,15 +158,15 @@ class CustomMenuDrawer extends StatelessWidget {
   }
 
   //funcion  para construir los botones
-  Widget _buildMenuItem(String title, {required bool isPrimary,required VoidCallback onTap}) {
+  Widget _buildMenuItem(String title, {required bool isPrimary, required VoidCallback onTap}) {
     return InkWell(
-      onTap: onTap, // Aquí es donde Flutter ejecuta la navegación que le mandamos arriba
+      onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         decoration: BoxDecoration(
           color: isPrimary ? const Color(0xFFE06B6B) : const Color(0xFFF7F8FA),
-          borderRadius: BorderRadius.circular(10), // Bordes redondeados
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           title,
@@ -123,8 +181,31 @@ class CustomMenuDrawer extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Map<String, dynamic>? _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString('user');
+    if (userStr != null) {
+      setState(() {
+        _userData = jsonDecode(userStr);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +221,14 @@ class HomePage extends StatelessWidget {
           ),
         ),
         actions: [
+          if (_userData != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Tooltip(
+                message: "Sesión iniciada como ${_userData!['nombre']}",
+                child: const Icon(Icons.account_circle, color: Color(0xFF2448B5)),
+              ),
+            ),
           Builder(
             builder: (context) {
               return IconButton(
@@ -197,7 +286,9 @@ class HomePage extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/infoFormulario');
+                    },
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -293,7 +384,9 @@ class HomePage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/infoFormulario');
+                    },
                     child: const Text(
                       'Solicitar Servicio Ahora',
                       style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
@@ -368,7 +461,7 @@ class HomePage extends StatelessWidget {
                 backgroundColor: Colors.white.withOpacity(0.1),
               ),
               onPressed: () {
-                Navigator.pushNamed(context, '/formulario');
+                Navigator.pushNamed(context, '/infoFormulario');
               },
               child: Text(buttonText, style: const TextStyle(color: Colors.white)),
             ),

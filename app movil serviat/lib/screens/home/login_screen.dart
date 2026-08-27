@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class LoginScreen extends StatefulWidget {
   final Function(bool)? setEstaAutenticado;
@@ -33,12 +35,21 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // Persistencia de sesión
+    final prefs = await SharedPreferences.getInstance();
+    final userData = {
+      'email': _emailController.text,
+      'nombre': _emailController.text.split('@')[0], // Mock name
+      'id': 1,
+    };
+    await prefs.setString('user', jsonEncode(userData));
+
     if (widget.setEstaAutenticado != null) {
       widget.setEstaAutenticado!(true);
     }
 
     if (mounted) {
-      Navigator.pushReplacementNamed(context, '/');
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     }
   }
 

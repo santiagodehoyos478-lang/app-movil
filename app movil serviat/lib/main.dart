@@ -30,9 +30,9 @@ class MiApp extends StatelessWidget {
       // 2. Registro de rutas con los nombres exactos de tus clases
       routes: {
         '/': (context) => const HomePage(),
-        '/login_screen': (context) => const LoginScreen(),
-        '/registro_screen': (context) => const RegistroScreen(),
-        'infoFormulario': (context)=> const InformacionPaso1(),
+        '/login': (context) => const LoginScreen(),
+        '/registro': (context) => const RegistroScreen(),
+        '/infoFormulario': (context)=> const InformacionPaso1(),
         '/Formulario': (context) => const Formulario(),
         '/ValidarInformacion': (context) => const ValidarInformacion(),  
         '/dana': (context) => const HomeDanaScreen(),
