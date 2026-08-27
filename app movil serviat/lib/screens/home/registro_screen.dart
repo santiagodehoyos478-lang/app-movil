@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../../core/network/api_client.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -26,6 +27,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   String _tipoDocumento = 'CC';
   String _rol = '1';
   bool _loading = false;
+  final ApiClient _apiClient = const ApiClient();
 
   void _handleSubmit() async {
     if (_claveController.text.length < 8) {
@@ -36,24 +38,34 @@ class _RegistroScreenState extends State<RegistroScreen> {
     }
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 1));
     
-    // Persistencia de sesión tras registro
-    final prefs = await SharedPreferences.getInstance();
-    final userData = {
-      'email': _emailController.text,
-      'nombre': _nombre1Controller.text,
-      'id': DateTime.now().millisecondsSinceEpoch, // Mock ID
-    };
-    await prefs.setString('user', jsonEncode(userData));
+    try {
+      final userData = {
+        'nombre': '${_nombre1Controller.text} ${_nombre2Controller.text} ${_apellido1Controller.text} ${_apellido2Controller.text}'.trim(),
+        'email': _emailController.text,
+        'clave': _claveController.text,
+        'telefono': _telefonoController.text,
+        'direccion': _direccionController.text,
+        'id_rol': int.parse(_rol),
+        'numero_documento': _documentoController.text,
+        'tipo_documento': _tipoDocumento,
+        'fecha_nacimiento': _fechaNacController.text,
+      };
 
-    setState(() => _loading = false);
+      await _apiClient.post('/registro', body: userData);
 
-    if (mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('¡Registro Exitoso! Inicia sesión.')),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Registro Exitoso! Bienvenido.')),
+        SnackBar(content: Text('Error al registrar: ${e.toString().replaceAll('Exception: ', '')}')),
       );
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -149,12 +161,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           value: _tipoDocumento,
                           decoration: _inputDecoration(''),
                           items: const [
-                            DropdownMenuItem(value: 'CC', child: Text('C.C.')),
-                            DropdownMenuItem(value: 'TI', child: Text('T.I.')),
-                            DropdownMenuItem(value: 'CE', child: Text('C.E.')),
+                            DropdownMenuItem(value: 'CC', child: Text('C.C.', overflow: TextOverflow.ellipsis)),
+                            DropdownMenuItem(value: 'TI', child: Text('T.I.', overflow: TextOverflow.ellipsis)),
+                            DropdownMenuItem(value: 'CE', child: Text('C.E.', overflow: TextOverflow.ellipsis)),
                           ],
                           onChanged: (val) => setState(() => _tipoDocumento = val!),
                         ),
@@ -162,6 +175,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           value: _rol,
                           decoration: _inputDecoration('').copyWith(
                             fillColor: const Color(0xFFFFF4F4),
@@ -172,9 +186,18 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             ),
                           ),
                           items: const [
-                            DropdownMenuItem(value: '1', child: Text('Soy Cliente', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DropdownMenuItem(value: '2', child: Text('Soy Técnico', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DropdownMenuItem(value: '3', child: Text('Soy Administrador', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DropdownMenuItem(
+                              value: '1',
+                              child: Text('Soy Cliente', style: TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
+                            DropdownMenuItem(
+                              value: '2',
+                              child: Text('Soy Técnico', style: TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
+                            DropdownMenuItem(
+                              value: '3',
+                              child: Text('Soy Administrador', style: TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
                           ],
                           onChanged: (val) => setState(() => _rol = val!),
                         ),

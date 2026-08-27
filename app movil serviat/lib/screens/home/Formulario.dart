@@ -96,7 +96,7 @@ class _FormularioState extends State<Formulario> {
 
   // Método auxiliar para reemplazar SweetAlert2
   Future<void> _mostrarAlerta(String titulo, String mensaje, bool exito) async {
-    const Color azulRey = Color(0xFF003366);
+    const Color azulOscuro = Color(0xFF2448B5);
     return showDialog(
       context: context,
       barrierDismissible: !exito,
@@ -110,14 +110,14 @@ class _FormularioState extends State<Formulario> {
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: azulRey.withOpacity(0.1), width: 1),
+            side: BorderSide(color: azulOscuro.withOpacity(0.1), width: 1),
           ),
-          title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, color: azulRey)),
-          content: Text(mensaje, style: const TextStyle(color: azulRey)),
+          title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, color: azulOscuro)),
+          content: Text(mensaje, style: const TextStyle(color: azulOscuro)),
           actions: exito ? [] : [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Entendido", style: TextStyle(color: azulRey, fontWeight: FontWeight.bold)),
+              child: const Text("Entendido", style: TextStyle(color: azulOscuro, fontWeight: FontWeight.bold)),
             )
           ],
         );
@@ -127,8 +127,8 @@ class _FormularioState extends State<Formulario> {
 
   @override
   Widget build(BuildContext context) {
-    const Color azulRey = Color(0xFF0D6EFD);
-    const Color salmon = Color(0xFFFF8C69);
+    const Color azulOscuro = Color(0xFF2448B5);
+    const Color colorSalmon = Color(0xFFE06B6B);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -147,7 +147,7 @@ class _FormularioState extends State<Formulario> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: azulRey.withOpacity(0.1),
+                          color: azulOscuro.withOpacity(0.1),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -164,7 +164,7 @@ class _FormularioState extends State<Formulario> {
                               style: TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.bold,
-                                color: azulRey,
+                                color: azulOscuro,
                               ),
                             ),
                           ),
@@ -177,23 +177,23 @@ class _FormularioState extends State<Formulario> {
                           _buildTextField("Nombre del equipo", "Ingresa nombre del equipo", "equipo"),
                           const SizedBox(height: 16),
 
-                          const Text("Categoría del equipo", style: TextStyle(fontWeight: FontWeight.w600, color: azulRey)),
+                          const Text("Categoría del equipo", style: TextStyle(fontWeight: FontWeight.w600, color: azulOscuro)),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             value: _datosValidar["categoria"],
                             decoration: _inputDecoration(),
-                            icon: const Icon(Icons.keyboard_arrow_down, color: azulRey),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: azulOscuro),
                             items: ["Industrial", "Doméstico"].map((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
-                                child: Text(value, style: const TextStyle(color: azulRey)),
+                                child: Text(value, style: const TextStyle(color: azulOscuro)),
                               );
                             }).toList(),
                             onChanged: (val) => setState(() => _datosValidar["categoria"] = val!),
                           ),
                           const SizedBox(height: 24),
 
-                          const Text("Tipo de servicio", style: TextStyle(fontWeight: FontWeight.w600, color: azulRey)),
+                          const Text("Tipo de servicio", style: TextStyle(fontWeight: FontWeight.w600, color: azulOscuro)),
                           const SizedBox(height: 12),
                           Row(
                             children: [
@@ -216,21 +216,21 @@ class _FormularioState extends State<Formulario> {
                           const SizedBox(height: 24),
 
                           const Center(
-                            child: Text("Seleccione la fecha", style: TextStyle(fontWeight: FontWeight.w600, color: azulRey)),
+                            child: Text("Seleccione la fecha", style: TextStyle(fontWeight: FontWeight.w600, color: azulOscuro)),
                           ),
                           const SizedBox(height: 12),
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: azulRey.withOpacity(0.2)),
+                              border: Border.all(color: azulOscuro.withOpacity(0.2)),
                             ),
                             child: Theme(
                               data: Theme.of(context).copyWith(
                                 colorScheme: ColorScheme.light(
-                                  primary: salmon,
+                                  primary: colorSalmon,
                                   onPrimary: Colors.white,
-                                  onSurface: azulRey,
+                                  onSurface: azulOscuro,
                                 ),
                               ),
                               child: CalendarDatePicker(
@@ -246,7 +246,7 @@ class _FormularioState extends State<Formulario> {
                           Center(
                             child: Text(
                               "Fecha seleccionada: ${_fechaSeleccionada.day}/${_fechaSeleccionada.month}/${_fechaSeleccionada.year}",
-                              style: const TextStyle(color: salmon, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: colorSalmon, fontWeight: FontWeight.bold),
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -255,23 +255,23 @@ class _FormularioState extends State<Formulario> {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: azulRey.withOpacity(0.05),
+                              color: azulOscuro.withOpacity(0.05),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: azulRey.withOpacity(0.1)),
+                              border: Border.all(color: azulOscuro.withOpacity(0.1)),
                             ),
                             child: const Column(
                               children: [
-                                Text("TÉCNICO DISPONIBLE", style: TextStyle(color: azulRey, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+                                Text("TÉCNICO DISPONIBLE", style: TextStyle(color: azulOscuro, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
                                 SizedBox(height: 8),
-                                Text("Nombre:", style: TextStyle(color: azulRey, fontSize: 12)),
-                                Text("Fabio Alexander Rojas Lara", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: azulRey)),
+                                Text("Nombre:", style: TextStyle(color: azulOscuro, fontSize: 12)),
+                                Text("Fabio Alexander Rojas Lara", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: azulOscuro)),
                               ],
                             ),
                           ),
                           const SizedBox(height: 24),
 
                           const Center(
-                            child: Text("Seleccione la hora a realizar el servicio", style: TextStyle(fontWeight: FontWeight.w600, color: azulRey)),
+                            child: Text("Seleccione la hora a realizar el servicio", style: TextStyle(fontWeight: FontWeight.w600, color: azulOscuro)),
                           ),
                           const SizedBox(height: 16),
                           GridView.builder(
@@ -292,14 +292,14 @@ class _FormularioState extends State<Formulario> {
                                 child: Container(
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: isSelected ? salmon : Colors.white,
+                                    color: isSelected ? colorSalmon : Colors.white,
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: isSelected ? salmon : azulRey.withOpacity(0.2)),
+                                    border: Border.all(color: isSelected ? colorSalmon : azulOscuro.withOpacity(0.2)),
                                   ),
                                   child: Text(
                                     h,
                                     style: TextStyle(
-                                      color: isSelected ? Colors.white : azulRey,
+                                      color: isSelected ? Colors.white : azulOscuro,
                                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                     ),
                                   ),
@@ -315,11 +315,11 @@ class _FormularioState extends State<Formulario> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               gradient: const LinearGradient(
-                                colors: [azulRey, Color(0xFF004080)],
+                                colors: [azulOscuro, Color(0xFF001A33)],
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: azulRey.withOpacity(0.3),
+                                  color: azulOscuro.withOpacity(0.3),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -355,7 +355,7 @@ class _FormularioState extends State<Formulario> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [azulRey, Color(0xFF001A33)],
+                  colors: [azulOscuro, Color(0xFF001A33)],
                 ),
               ),
               child: Column(
@@ -398,17 +398,17 @@ class _FormularioState extends State<Formulario> {
   // --- MÉTODOS AUXILIARES ACTUALIZADOS ---
 
   Widget _buildTextField(String label, String hint, String fieldKey, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, bool isRequired = true}) {
-    const Color azulRey = Color(0xFF0D6EFD);
+    const Color azulOscuro = Color(0xFF2448B5);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: azulRey)),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: azulOscuro)),
         const SizedBox(height: 8),
         TextFormField(
           decoration: _inputDecoration(hint: hint),
           maxLines: maxLines,
           keyboardType: keyboardType,
-          style: const TextStyle(color: azulRey),
+          style: const TextStyle(color: azulOscuro),
           validator: isRequired ? (value) => value == null || value.isEmpty ? 'Campo requerido' : null : null,
           onSaved: (value) => _datosValidar[fieldKey] = value ?? '',
         ),
@@ -417,7 +417,7 @@ class _FormularioState extends State<Formulario> {
   }
 
   InputDecoration _inputDecoration({String? hint}) {
-    const Color azulRey = Color(0xFF0D6EFD);
+    const Color azulOscuro = Color(0xFF2448B5);
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
@@ -426,14 +426,14 @@ class _FormularioState extends State<Formulario> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: azulRey, width: 2)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: azulOscuro, width: 2)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
     );
   }
 
   Widget _buildServiceCard(String text, IconData icon) {
-    const Color azulRey = Color(0xFF0D6EFD);
-    const Color salmon = Color(0xFFFF8C69);
+    const Color azulOscuro = Color(0xFF2448B5);
+    const Color colorSalmon = Color(0xFFE06B6B);
     final isSelected = _appliance == text;
     return InkWell(
       onTap: () => setState(() => _appliance = text),
@@ -444,19 +444,19 @@ class _FormularioState extends State<Formulario> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? salmon : const Color(0xFFE2E8F0),
+            color: isSelected ? colorSalmon : const Color(0xFFE2E8F0),
             width: isSelected ? 2 : 1,
           ),
-          boxShadow: isSelected ? [BoxShadow(color: salmon.withOpacity(0.1), blurRadius: 10, spreadRadius: 2)] : [],
+          boxShadow: isSelected ? [BoxShadow(color: colorSalmon.withOpacity(0.1), blurRadius: 10, spreadRadius: 2)] : [],
         ),
         child: Column(
           children: [
-            Icon(icon, size: 28, color: isSelected ? salmon : azulRey.withOpacity(0.5)),
+            Icon(icon, size: 28, color: isSelected ? colorSalmon : azulOscuro.withOpacity(0.5)),
             const SizedBox(height: 8),
             Text(
               text,
               style: TextStyle(
-                color: isSelected ? salmon : azulRey,
+                color: isSelected ? colorSalmon : azulOscuro,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
