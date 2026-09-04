@@ -5,7 +5,6 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 
-
 class EquiposRealTiempo extends StatefulWidget {
   const EquiposRealTiempo({Key? key}) : super(key: key);
 
@@ -83,12 +82,8 @@ void main() {
   runApp(const MonitorApp());
 }
 
-
-
 class MonitorApp extends StatelessWidget {
   const MonitorApp({super.key});
-
-
 
 
   @override
@@ -110,13 +105,14 @@ class MonitorApp extends StatelessWidget {
 enum PcStatus { ok, broken, maintenance, offline }
 
 class Computer {
-  final int id;
+  final String id;
   final String label;
   PcStatus status;
   String since;
   String note;
   final int row;
   final int seat;
+  final String? salonId;
 
   Computer({
     required this.id,
@@ -126,6 +122,7 @@ class Computer {
     required this.note,
     required this.row,
     required this.seat,
+    required this.salonId,
   });
 }
 
@@ -155,16 +152,20 @@ class MonitorDashboard extends StatefulWidget {
 }
 
 class _MonitorDashboardState extends State<MonitorDashboard> {
-  late List<Computer> computers;
   PcStatus? currentFilter; // null significa "Todos"
   bool isGrid = true;
   late Timer _timer;
   String timeString = _getTimeString();
 
+  //  vamos a la tabla de Supabase
+  final _equiposStream = Supabase.instance.client
+      .from('equipos')
+      .stream(primaryKey: ['id'])
+      .order('codigo', ascending: true);
+
   @override
   void initState() {
     super.initState();
-    computers = _buildComputers();
     _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
       setState(() => timeString = _getTimeString());
     });
@@ -181,65 +182,24 @@ class _MonitorDashboardState extends State<MonitorDashboard> {
     return "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
   }
 
-  List<Computer> _buildComputers() {
-    List<Map<String, dynamic>> base = [
-      {'id': 1, 'status': PcStatus.ok, 'note': ''},
-      {'id': 2, 'status': PcStatus.ok, 'note': ''},
-      {'id': 3, 'status': PcStatus.broken, 'note': 'No enciende'},
-      {'id': 6, 'status': PcStatus.maintenance, 'note': 'Actualiz. SO'},
-      {'id': 10, 'status': PcStatus.broken, 'note': 'Teclado dañado'},
-      {'id': 13, 'status': PcStatus.offline, 'note': ''},
-      {'id': 17, 'status': PcStatus.maintenance, 'note': 'Revisión disco'},
-      {'id': 20, 'status': PcStatus.broken, 'note': 'Pantalla azul'},
-      {'id': 25, 'status': PcStatus.offline, 'note': ''},
-      {'id': 29, 'status': PcStatus.maintenance, 'note': 'Sin disco duro'},
-    ];
+  Future<void> _updateComputer(String id, PcStatus newStatus, String newNote) async {
+    try {
+      await Supabase.instance.client.from('equipos').update({
+        'estado': newStatus.name, // Guarda 'ok', 'broken', 'maintenance', 'offline'
+        'observacion': newNote,
+      }).eq('id', id);
 
-    return List.generate(30, (index) {
-      int id = index + 1;
-      var override = base.where((b) => b['id'] == id).firstOrNull;
-      PcStatus status = override != null ? override['status'] : PcStatus.ok;
-      String note = override != null ? override['note'] : '';
-
-      String since = status == PcStatus.ok ? "08:00" : status == PcStatus.offline ? "—" : "0${8 + (id / 5).floor()}:${((id * 7) % 60).toString().padLeft(2, '0')}";
-
-      return Computer(
-        id: id,
-        label: 'PC-${id.toString().padLeft(2, '0')}',
-        status: status,
-        since: since,
-        note: note,
-        row: (id / 6).ceil(),
-        seat: ((id - 1) % 6) + 1,
-      );
-    });
-  }
-
-  // ── GETTERS (Equivalentes a useMemo) ──
-  int get countOk => computers.where((c) => c.status == PcStatus.ok).length;
-  int get countBroken => computers.where((c) => c.status == PcStatus.broken).length;
-  int get countMaint => computers.where((c) => c.status == PcStatus.maintenance).length;
-  int get countOff => computers.where((c) => c.status == PcStatus.offline).length;
-
-  List<Computer> get filteredComputers {
-    if (currentFilter == null) {
-      List<Computer> list = List.from(computers);
-      List<PcStatus> order = [PcStatus.broken, PcStatus.maintenance, PcStatus.offline, PcStatus.ok];
-      list.sort((a, b) => order.indexOf(a.status).compareTo(order.indexOf(b.status)));
-      return list;
-    }
-    return computers.where((c) => c.status == currentFilter).toList();
-  }
-
-  void _updateComputer(int id, PcStatus newStatus, String newNote) {
-    setState(() {
-      final index = computers.indexWhere((c) => c.id == id);
-      if (index != -1) {
-        computers[index].status = newStatus;
-        computers[index].note = newNote;
-        computers[index].since = _getTimeString();
+      // No necesitamos usar setState aquí, el StreamBuilder detectará el cambio automáticamente
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar: $e', style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    });
+    }
   }
 
   void _openDetailSheet(Computer computer) {
@@ -259,115 +219,176 @@ class _MonitorDashboardState extends State<MonitorDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    int healthPct = ((countOk / computers.length) * 100).round();
-    Color healthColor = healthPct >= 90 ? const Color(0xFF00E87A) : healthPct >= 70 ? const Color(0xFFF5A623) : const Color(0xFFFF2D55);
-
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            // HEADER
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-              decoration: const BoxDecoration(
-                color: Color(0xFF0A0D12),
-                border: Border(bottom: BorderSide(color: Color(0xFF1E2430))),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // 3. Envolvemos toda la estructura en el StreamBuilder
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _equiposStream,
+          builder: (context, snapshot) {
+            // Manejo de estados de carga y error
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF00E87A)));
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error de conexión: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+            }
+
+            final data = snapshot.data ?? [];
+
+            // 4. Mapear los datos de Supabase a nuestra clase Computer
+            List<Computer> computers = data.map((row) {
+              String codigo = row['codigo'] ?? 'PC-00';
+              int numPc = int.tryParse(codigo.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+
+              String estadoDb = row['estado']?.toString() ?? 'ok';
+              PcStatus status = PcStatus.values.firstWhere(
+                    (e) => e.name == estadoDb,
+                orElse: () => PcStatus.ok,
+              );
+
+              return Computer(
+                id: row['id'].toString(),
+                label: codigo,
+                status: status,
+                since: "08:00", // Aquí podrías mapear un campo 'updated_at' si lo agregas a tu BD
+                note: row['observacion'] ?? '',
+                row: (numPc / 6).ceil(),
+                seat: ((numPc - 1) % 6) + 1,
+                salonId: row['salon_id']?.toString(),
+              );
+            }).toList();
+
+            // 5. Cálculos para los chips del Header
+            int countOk = computers.where((c) => c.status == PcStatus.ok).length;
+            int countBroken = computers.where((c) => c.status == PcStatus.broken).length;
+            int countMaint = computers.where((c) => c.status == PcStatus.maintenance).length;
+            int countOff = computers.where((c) => c.status == PcStatus.offline).length;
+
+            int healthPct = computers.isEmpty ? 0 : ((countOk / computers.length) * 100).round();
+            Color healthColor = healthPct >= 90
+                ? const Color(0xFF00E87A)
+                : healthPct >= 70 ? const Color(0xFFF5A623) : const Color(0xFFFF2D55);
+
+            // 6. Aplicar filtro seleccionado
+            List<Computer> filteredComputers;
+            if (currentFilter == null) {
+              filteredComputers = List.from(computers);
+              List<PcStatus> order = [PcStatus.broken, PcStatus.maintenance, PcStatus.offline, PcStatus.ok];
+              filteredComputers.sort((a, b) => order.indexOf(a.status).compareTo(order.indexOf(b.status)));
+            } else {
+              filteredComputers = computers.where((c) => c.status == currentFilter).toList();
+            }
+
+            // 7. Retornar la interfaz original ya con datos dinámicos
+            return Column(
+              children: [
+                // HEADER
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0A0D12),
+                    border: Border(bottom: BorderSide(color: Color(0xFF1E2430))),
+                  ),
+                  child: Column(
                     children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('◉ EN VIVO  SALÓN 317', style: TextStyle(color: Color(0xFF00E87A), fontSize: 10, fontWeight: FontWeight.bold)),
-                          Text('Monitor de Equipos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('◉ EN VIVO  SALÓN 317', style: TextStyle(color: Color(0xFF00E87A), fontSize: 10, fontWeight: FontWeight.bold)),
+                              Text('Monitor de Equipos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                            ],
+                          ),
+                          Text(timeString, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                         ],
                       ),
-                      Text(timeString, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _StatChip('OPERATIVOS', countOk, statusMeta[PcStatus.ok]!.color),
-                      _StatChip('AVERIADOS', countBroken, statusMeta[PcStatus.broken]!.color),
-                      _StatChip('MANTEN.', countMaint, statusMeta[PcStatus.maintenance]!.color),
-                      const Spacer(),
-                      _StatChip('$healthPct%', healthPct, healthColor, labelColor: Colors.grey),
-                    ],
-                  )
-                ],
-              ),
-            ),
-
-            // FILTROS Y VISTAS
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
+                      const SizedBox(height: 16),
+                      Row(
                         children: [
-                          _FilterBtn('TODOS', null, computers.length),
-                          _FilterBtn('OK', PcStatus.ok, countOk),
-                          _FilterBtn('AVERIADOS', PcStatus.broken, countBroken),
-                          _FilterBtn('MANTEN.', PcStatus.maintenance, countMaint),
+                          _StatChip('OPERATIVOS', countOk, statusMeta[PcStatus.ok]!.color),
+                          _StatChip('AVERIADOS', countBroken, statusMeta[PcStatus.broken]!.color),
+                          _StatChip('MANTEN.', countMaint, statusMeta[PcStatus.maintenance]!.color),
+                          const Spacer(),
+                          _StatChip('$healthPct%', healthPct, healthColor, labelColor: Colors.grey),
                         ],
-                      ),
-                    ),
+                      )
+                    ],
                   ),
-                  Container(
-                    decoration: BoxDecoration(border: Border.all(color: const Color(0xFF1E2430)), borderRadius: BorderRadius.circular(6)),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.grid_view, size: 18),
-                          color: isGrid ? Colors.white : Colors.grey,
-                          onPressed: () => setState(() => isGrid = true),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.view_list, size: 18),
-                          color: !isGrid ? Colors.white : Colors.grey,
-                          onPressed: () => setState(() => isGrid = false),
-                        ),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            ),
-
-            // CONTENIDO
-            Expanded(
-              child: isGrid
-                  ? GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 0.75,
                 ),
-                itemCount: filteredComputers.length,
-                itemBuilder: (context, i) => _GridCard(filteredComputers[i], () => _openDetailSheet(filteredComputers[i])),
-              )
-                  : ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: filteredComputers.length,
-                itemBuilder: (context, i) => _ListRow(filteredComputers[i], () => _openDetailSheet(filteredComputers[i])),
-              ),
-            ),
-          ],
+
+                // FILTROS Y VISTAS
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _FilterBtn('TODOS', null, computers.length, computers),
+                              _FilterBtn('OK', PcStatus.ok, countOk, computers),
+                              _FilterBtn('AVERIADOS', PcStatus.broken, countBroken, computers),
+                              _FilterBtn('MANTEN.', PcStatus.maintenance, countMaint, computers),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(border: Border.all(color: const Color(0xFF1E2430)), borderRadius: BorderRadius.circular(6)),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.grid_view, size: 18),
+                              color: isGrid ? Colors.white : Colors.grey,
+                              onPressed: () => setState(() => isGrid = true),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.view_list, size: 18),
+                              color: !isGrid ? Colors.white : Colors.grey,
+                              onPressed: () => setState(() => isGrid = false),
+                            ),
+                          ],
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+
+                // CONTENIDO (GRID O LISTA)
+                Expanded(
+                  child: computers.isEmpty
+                      ? const Center(child: Text('No hay equipos registrados en este salón', style: TextStyle(color: Colors.grey)))
+                      : isGrid
+                      ? GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 5,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 0.75,
+                    ),
+                    itemCount: filteredComputers.length,
+                    itemBuilder: (context, i) => _GridCard(filteredComputers[i], () => _openDetailSheet(filteredComputers[i])),
+                  )
+                      : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredComputers.length,
+                    itemBuilder: (context, i) => _ListRow(filteredComputers[i], () => _openDetailSheet(filteredComputers[i])),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _StatChip(String label, dynamic count, Color color, {Color? labelColor}) {
+  // Helper Widgets ajustados para evitar errores de compilación con las variables de estado
+  Widget _StatChip(String label, int count, Color color, {Color? labelColor}) {
     return Container(
       margin: const EdgeInsets.only(right: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -385,7 +406,7 @@ class _MonitorDashboardState extends State<MonitorDashboard> {
     );
   }
 
-  Widget _FilterBtn(String label, PcStatus? status, int count) {
+  Widget _FilterBtn(String label, PcStatus? status, int count, List<Computer> currentList) {
     bool active = currentFilter == status;
     Color color = status == null ? Colors.white : statusMeta[status]!.color;
     return GestureDetector(
