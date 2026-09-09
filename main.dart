@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 
 void main() {
   runApp(const ServiatApp());
@@ -6,10 +7,31 @@ void main() {
 
 class ServiatApp extends StatelessWidget {
   const ServiatApp({super.key});
+=======
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constants.dart';
+import 'screens/login_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  
+  await Supabase.initialize(
+    url: AppConstants.supabaseUrl,
+    publishableKey: AppConstants.supabaseAnonKey,
+  );
+
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+>>>>>>> bd9134e8518d39b03821370905e39c7b95f44bf3
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+<<<<<<< HEAD
       title: 'AR Servicio Técnico',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -359,3 +381,14 @@ class HomePage extends StatelessWidget {
 
 
 
+=======
+      title: 'Control Salón 317',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const LoginScreen(),
+    );
+  }
+}
+>>>>>>> bd9134e8518d39b03821370905e39c7b95f44bf3
