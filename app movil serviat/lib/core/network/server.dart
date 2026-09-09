@@ -10,7 +10,7 @@ void main() async {
       .addMiddleware(logRequests())
       .addHandler(api.router.call);
 
-  // Levanta el servidor en localhost, puerto 8080
-  final server = await io.serve(handler, 'localhost', 8080);
+  // Levanta el servidor en 0.0.0.0 para permitir conexiones desde la red local (móviles/emuladores)
+  final server = await io.serve(handler, '0.0.0.0', 8080);
   print('🚀 Servidor backend corriendo en http://${server.address.host}:${server.port}');
 }

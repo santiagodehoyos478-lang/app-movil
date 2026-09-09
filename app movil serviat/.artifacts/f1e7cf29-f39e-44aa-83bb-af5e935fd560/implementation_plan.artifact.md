@@ -1,52 +1,35 @@
-# Plan de Implementación de Endpoints del Backend
+# Plan de Redirección Automática por Rol tras Registro
 
-Este plan detalla la implementación de los endpoints faltantes en el servidor Dart (`shelf`) para soportar las funcionalidades de la App Móvil, el Panel Administrador y el Panel Técnico, conectándose a la base de datos MySQL `serviat`.
-
-## Hallazgos de Investigación
-
-- **Servidor Actual:** El proyecto cuenta con un servidor en Dart utilizando `shelf` y `shelf_router` en `lib/core/network/server.dart`.
-- **Endpoints Existentes:** Solo se encontró `POST /api/solicitud` en `lib/core/network/api_solicitud.dart`.
-- **Dependencias:** El archivo `pubspec.yaml` ya incluye `bcrypt` (para encriptar contraseñas) y `mysql1` (para la base de datos).
-- **Frontend:** Las pantallas de Login y Registro están usando datos simulados (mock) y no llaman a ninguna API real.
-
----
+Este plan detalla los cambios necesarios para que, al registrarse un usuario, sea redirigido automáticamente a su panel correspondiente (Técnico o Administrador) y se inicie su sesión sin tener que pasar por el login manualmente.
 
 ## Cambios Propuestos
 
-### Componente: Backend (Dart/Shelf)
+### 1. Backend (Servidor Dart)
 
 #### [MODIFY] [api_solicitud.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/core/network/api_solicitud.dart)
-Se ampliará la clase `SolicitudApi` para incluir todos los endpoints solicitados, o se crearán nuevas clases si es necesario para mantener el orden. Por simplicidad y siguiendo la estructura actual, se añadirán a esta clase o se integrarán en el `Router`.
+- Modificar el endpoint `_registrarUsuario` para que, tras una inserción exitosa, recupere el ID generado y retorne los datos del usuario recién creado (incluyendo `id_rol`).
+- Esto permitirá al frontend guardar la sesión inmediatamente.
 
-**Nuevos Endpoints a Implementar:**
-1. **App Móvil:**
-   - `POST /api/registro`: Registro de usuarios con encriptación `bcrypt`.
-   - `POST /api/login`: Verificación de credenciales y retorno de rol del usuario.
-2. **Panel Administrador:**
-   - `GET /api/admin/solicitudes`: Consulta detallada de todas las solicitudes.
-   - `PUT /api/admin/solicitudes/<id>`: Actualización de estado y asignación de técnico.
-   - `DELETE /api/admin/solicitudes/<id>`: Eliminación de solicitud.
-3. **Panel Técnico:**
-   - `GET /api/tecnico/<id>/solicitudes`: Consulta de solicitudes asignadas a un técnico específico.
-   - `PUT /api/tecnico/solicitud/<id>/aceptar`: Aceptar solicitud y enviar notificación (simulada o vía API de correo si está disponible).
-
-### Componente: Frontend (Flutter)
-
-#### [MODIFY] [login_screen.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/screens/home/login_screen.dart)
-Actualizar `_handleLogin` para realizar una petición HTTP real al nuevo endpoint `/api/login`.
+### 2. Frontend (App Móvil)
 
 #### [MODIFY] [registro_screen.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/screens/home/registro_screen.dart)
-Actualizar `_handleSubmit` para enviar los datos del formulario al endpoint `/api/registro`.
+- Actualizar `_handleSubmit` para recibir el objeto de respuesta del servidor.
+- Guardar los datos del usuario en `SharedPreferences` (persistir sesión).
+- Implementar la lógica de redirección inmediata:
+  - **Rol 2 (Técnico):** Navegar a `/dana`.
+  - **Rol 3 (Administrador):** Navegar a `/dashboard`.
+  - **Rol 1 (Cliente):** Navegar a `/`.
 
 ---
 
 ## Plan de Verificación
 
-### Pruebas de Backend
-- Realizar peticiones `POST` a `/api/registro` y verificar la creación de registros en la tabla `usuario` de MySQL.
-- Probar el `/api/login` con credenciales válidas e inválidas.
-- Verificar que los endpoints de Admin y Técnico retornen los datos correctos filtrados por ID o estado.
-
-### Pruebas de Frontend
-- Intentar registrar un nuevo usuario desde la app y verificar que se guarde en la base de datos.
-- Iniciar sesión con el nuevo usuario y confirmar que se redirija correctamente a la pantalla de inicio.
+### Pruebas Manuales
+1. **Registro de Técnico:**
+   - Llenar el formulario eligiendo "Soy Técnico".
+   - Al darle a "Registrar", la app debe mostrar "Registro Exitoso" y enviarte directamente a la pantalla con el título "Panel Técnico".
+2. **Registro de Administrador:**
+   - Llenar el formulario eligiendo "Soy Administrador".
+   - Al darle a "Registrar", la app debe enviarte al "Dashboard" de administrador.
+3. **Verificación de Sesión:**
+   - Cerrar la app y volver a abrirla para confirmar que la sesión se guardó correctamente.

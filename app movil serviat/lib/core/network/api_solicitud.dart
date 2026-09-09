@@ -36,13 +36,19 @@ class SolicitudApi {
 
   // --- MÓVIL: Registro ---
   Future<Response> _registrarUsuario(Request request) async {
+    print("📩 Intentando registrar nuevo usuario...");
     MySqlConnection? db;
     try {
-      final body = json.decode(await request.readAsString());
+      final payload = await request.readAsString();
+      print("📦 Payload recibido: $payload");
+      final body = json.decode(payload);
+
+      print("🔌 Conectando a MySQL...");
+      db = await MySqlConnection.connect(dbSettings).timeout(const Duration(seconds: 5));
+      print("✅ Conexión exitosa a MySQL");
+      
       final passwordHash = BCrypt.hashpw(body['clave'], BCrypt.gensalt());
 
-      db = await MySqlConnection.connect(dbSettings);
-      
       final sql = '''
         INSERT INTO usuario (nombre, email, clave, telefono, direccion, id_rol, numero_documento, tipo_documento, fecha_nacimiento)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -60,9 +66,11 @@ class SolicitudApi {
         body['fecha_nacimiento']
       ]);
 
+      print("✅ Usuario registrado con éxito: ${body['email']}");
       return Response.ok(json.encode({"mensaje": "Usuario registrado con éxito"}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
+      print("❌ Error en registro: $e");
       return Response.internalServerError(body: json.encode({"error": e.toString()}),
           headers: {'Content-Type': 'application/json'});
     } finally {
@@ -72,9 +80,11 @@ class SolicitudApi {
 
   // --- MÓVIL: Login ---
   Future<Response> _loginUsuario(Request request) async {
+    print("🔑 Intento de inicio de sesión...");
     MySqlConnection? db;
     try {
       final body = json.decode(await request.readAsString());
+      print("📧 Email: ${body['email']}");
       db = await MySqlConnection.connect(dbSettings);
 
       final results = await db.query('SELECT * FROM usuario WHERE email = ?', [body['email']]);
