@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../core/network/api_client.dart';
 
 class ValidarInformacion extends StatefulWidget {
   const ValidarInformacion({super.key});
@@ -14,14 +15,10 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
   bool _cargando = false;
 
   // Paleta de colores
-  final Color azulRey = const Color(0xFF0D6EFD);
-  final Color salmon = const Color(0xFFFF7E67);
+  final Color azulOscuro = const Color(0xFF2448B5);
+  final Color colorSalmon = const Color(0xFFE06B6B);
   final Color fondoApp = const Color(0xFFF8FAFC);
-
-  // IMPORTANTE: Si estás probando en el emulador de Android, localhost no funciona.
-  // Debes usar la IP 10.0.2.2 que apunta al localhost de tu computadora.
-  // Si pruebas en web o dispositivo físico conectado por red, cambia esto por tu IP local (ej. 192.168.x.x)
-  final String _baseUrl = 'http://10.0.2.2:3001/api';
+  final ApiClient _apiClient = const ApiClient();
 
   Future<void> _confirmarReserva(Map<String, dynamic> datos) async {
     setState(() {
@@ -57,37 +54,33 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
       };
 
       // Petición a la base de datos
-      final respuestaDb = await http.post(
-        Uri.parse('$_baseUrl/solicitud'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(datosParaMySQL),
+      await _apiClient.post(
+        '/solicitud',
+        body: datosParaMySQL,
       );
 
-      if (respuestaDb.statusCode != 200 && respuestaDb.statusCode != 201) {
-        final errorMsg = jsonDecode(respuestaDb.body)['error'] ?? "Error al guardar en el servidor";
-        throw Exception(errorMsg);
+      // 2. Enviar notificaciones por correo (opcional)
+      bool notificacionEnviada = false;
+      try {
+        final Map<String, dynamic> datosNotificaciones = {
+          "email": datos['gmail'],
+          "nombreCliente": datos['nombreCliente'],
+          "equipo": datos['equipo'],
+          "fecha": datos['fechaSeleccionada'],
+          "hora": datos['horaSeleccionada'],
+          "estado": "Pendiente"
+        };
+
+        await _apiClient.post('/notificaciones/enviar', body: datosNotificaciones);
+        notificacionEnviada = true;
+      } catch (e) {
+        print("Error enviando notificación: $e");
       }
-
-      // 2. Enviar notificaciones por correo
-      final Map<String, dynamic> datosNotificaciones = {
-        "email": datos['gmail'],
-        "nombreCliente": datos['nombreCliente'],
-        "equipo": datos['equipo'],
-        "fecha": datos['fechaSeleccionada'],
-        "hora": datos['horaSeleccionada'],
-        "estado": "Pendiente"
-      };
-
-      final respuestaNotificacion = await http.post(
-        Uri.parse('$_baseUrl/notificaciones/enviar'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(datosNotificaciones),
-      );
 
       // Independientemente de si el correo falla o no (como en tu código original), mostramos éxito
       await _mostrarAlerta(
           "¡Reserva Confirmada!",
-          "Se ha guardado tu solicitud y ${respuestaNotificacion.statusCode == 200 ? 'enviado el correo de confirmación' : 'estamos procesando la notificación'}.",
+          "Se ha guardado tu solicitud y ${notificacionEnviada ? 'enviado el correo de confirmación' : 'estamos procesando la notificación'}.",
           true
       );
 
@@ -115,20 +108,20 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: exito ? azulRey : Colors.red, width: 2),
+            side: BorderSide(color: exito ? azulOscuro : Colors.red, width: 2),
           ),
           title: Row(
             children: [
-              Icon(exito ? Icons.check_circle : Icons.error, color: exito ? azulRey : Colors.red, size: 28),
+              Icon(exito ? Icons.check_circle : Icons.error, color: exito ? azulOscuro : Colors.red, size: 28),
               const SizedBox(width: 10),
-              Expanded(child: Text(titulo, style: TextStyle(fontWeight: FontWeight.bold, color: exito ? azulRey : Colors.red))),
+              Expanded(child: Text(titulo, style: TextStyle(fontWeight: FontWeight.bold, color: exito ? azulOscuro : Colors.red))),
             ],
           ),
           content: Text(mensaje, style: const TextStyle(fontSize: 16)),
           actions: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: azulRey,
+                backgroundColor: azulOscuro,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () => Navigator.pop(context),
@@ -149,7 +142,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
       backgroundColor: fondoApp,
       appBar: AppBar(
         title: const Text("Validar Información"),
-        backgroundColor: azulRey,
+        backgroundColor: azulOscuro,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -178,7 +171,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
                     ),
                     child: Column(
                       children: [
-                        Text("Validar tipo de servicio", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: azulRey)),
+                        Text("Validar tipo de servicio", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: azulOscuro)),
                         const SizedBox(height: 8),
                         Text("Por favor revisa los detalles de tu solicitud antes de confirmar", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
                         const SizedBox(height: 24),
@@ -189,16 +182,16 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF9F0), // Fondo crema/naranja suave
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: salmon.withOpacity(0.5)),
+                            border: Border.all(color: colorSalmon.withOpacity(0.5)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.assignment_turned_in, color: salmon),
+                                  Icon(Icons.assignment_turned_in, color: colorSalmon),
                                   const SizedBox(width: 8),
-                                  Text("Resumen del servicio", style: TextStyle(fontWeight: FontWeight.bold, color: salmon, fontSize: 18)),
+                                  Text("Resumen del servicio", style: TextStyle(fontWeight: FontWeight.bold, color: colorSalmon, fontSize: 18)),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -253,7 +246,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
                               child: ElevatedButton(
                                 onPressed: _cargando ? null : () => _confirmarReserva(datos),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: azulRey,
+                                  backgroundColor: azulOscuro,
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 4,

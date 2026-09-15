@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../../core/network/api_client.dart';
 
 class LoginScreen extends StatefulWidget {
   final Function(bool)? setEstaAutenticado;
@@ -14,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final ApiClient _apiClient = const ApiClient();
   
   bool _loading = false;
   String? _error;
@@ -24,32 +26,31 @@ class _LoginScreenState extends State<LoginScreen> {
       _loading = true;
     });
 
-    // Simulación de respuesta de login
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final response = await _apiClient.post(
+        '/login',
+        body: {
+          'email': _emailController.text,
+          'clave': _passwordController.text,
+        },
+      );
 
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      // Persistencia de sesión
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(response));
+
+      if (widget.setEstaAutenticado != null) {
+        widget.setEstaAutenticado!(true);
+      }
+
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
+    } catch (e) {
       setState(() {
-        _error = "Credenciales incorrectas.";
+        _error = "Error al iniciar sesión: ${e.toString().replaceAll('Exception: ', '')}";
         _loading = false;
       });
-      return;
-    }
-
-    // Persistencia de sesión
-    final prefs = await SharedPreferences.getInstance();
-    final userData = {
-      'email': _emailController.text,
-      'nombre': _emailController.text.split('@')[0], // Mock name
-      'id': 1,
-    };
-    await prefs.setString('user', jsonEncode(userData));
-
-    if (widget.setEstaAutenticado != null) {
-      widget.setEstaAutenticado!(true);
-    }
-
-    if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../../core/network/api_client.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -26,8 +27,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
   String _tipoDocumento = 'CC';
   String _rol = '1';
   bool _loading = false;
+  final ApiClient _apiClient = const ApiClient();
 
   void _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
     if (_claveController.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('La clave debe tener al menos 8 caracteres.')),
@@ -36,24 +42,57 @@ class _RegistroScreenState extends State<RegistroScreen> {
     }
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 1));
     
-    // Persistencia de sesión tras registro
-    final prefs = await SharedPreferences.getInstance();
-    final userData = {
-      'email': _emailController.text,
-      'nombre': _nombre1Controller.text,
-      'id': DateTime.now().millisecondsSinceEpoch, // Mock ID
-    };
-    await prefs.setString('user', jsonEncode(userData));
+    try {
+      final userData = {
+        'nombre': '${_nombre1Controller.text} ${_nombre2Controller.text} ${_apellido1Controller.text} ${_apellido2Controller.text}'.trim(),
+        'email': _emailController.text,
+        'clave': _claveController.text,
+        'telefono': _telefonoController.text,
+        'direccion': _direccionController.text,
+        'id_rol': int.parse(_rol),
+        'numero_documento': _documentoController.text,
+        'tipo_documento': _tipoDocumento,
+        'fecha_nacimiento': _fechaNacController.text,
+      };
 
-    setState(() => _loading = false);
+      final response = await _apiClient.post('/registro', body: userData);
 
-    if (mounted) {
+      // Guardar sesión automáticamente tras registro exitoso
+      final prefs = await SharedPreferences.getInstance();
+      final sessionData = {
+        'nombre': userData['nombre'],
+        'email': userData['email'],
+        'id_rol': userData['id_rol'],
+        'id': response['id'] ?? 0,
+      };
+      await prefs.setString('user', jsonEncode(sessionData));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('¡Registro Exitoso! Bienvenido.')),
+        );
+
+        // Redirección por Rol
+        String rutaDestino = '/';
+        if (_rol == '2') {
+          rutaDestino = '/dana'; // Panel Técnico
+        } else if (_rol == '3') {
+          rutaDestino = '/dashboard'; // Panel Administrador
+        }
+
+        Navigator.pushNamedAndRemoveUntil(context, rutaDestino, (route) => false);
+      }
+    } catch (e) {
+      String errorMsg = e.toString().replaceAll('Exception: ', '');
+      if (errorMsg.contains('TimeoutException')) {
+        errorMsg = "El servidor tarda demasiado en responder. Verifica tu conexión.";
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Registro Exitoso! Bienvenido.')),
+        SnackBar(content: Text('Error al registrar: $errorMsg')),
       );
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -108,14 +147,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: _nombre1Controller,
                           decoration: _inputDecoration('Primer Nombre*'),
+                          validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: _nombre2Controller,
                           decoration: _inputDecoration('Segundo Nombre'),
                         ),
@@ -128,14 +168,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: _apellido1Controller,
                           decoration: _inputDecoration('Primer Apellido*'),
+                          validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: _apellido2Controller,
                           decoration: _inputDecoration('Segundo Apellido'),
                         ),
@@ -149,12 +190,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           value: _tipoDocumento,
                           decoration: _inputDecoration(''),
                           items: const [
-                            DropdownMenuItem(value: 'CC', child: Text('C.C.')),
-                            DropdownMenuItem(value: 'TI', child: Text('T.I.')),
-                            DropdownMenuItem(value: 'CE', child: Text('C.E.')),
+                            DropdownMenuItem(value: 'CC', child: Text('C.C.', overflow: TextOverflow.ellipsis)),
+                            DropdownMenuItem(value: 'TI', child: Text('T.I.', overflow: TextOverflow.ellipsis)),
+                            DropdownMenuItem(value: 'CE', child: Text('C.E.', overflow: TextOverflow.ellipsis)),
                           ],
                           onChanged: (val) => setState(() => _tipoDocumento = val!),
                         ),
@@ -162,6 +204,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           value: _rol,
                           decoration: _inputDecoration('').copyWith(
                             fillColor: const Color(0xFFFFF4F4),
@@ -172,9 +215,18 @@ class _RegistroScreenState extends State<RegistroScreen> {
                             ),
                           ),
                           items: const [
-                            DropdownMenuItem(value: '1', child: Text('Soy Cliente', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DropdownMenuItem(value: '2', child: Text('Soy Técnico', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DropdownMenuItem(value: '3', child: Text('Soy Administrador', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DropdownMenuItem(
+                              value: '1',
+                              child: Text('Soy Cliente', style: TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
+                            DropdownMenuItem(
+                              value: '2',
+                              child: Text('Soy Técnico', style: TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
+                            DropdownMenuItem(
+                              value: '3',
+                              child: Text('Soy Administrador', style: TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
                           ],
                           onChanged: (val) => setState(() => _rol = val!),
                         ),
@@ -187,18 +239,20 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: _documentoController,
                           keyboardType: TextInputType.number,
                           decoration: _inputDecoration('Número Documento*'),
+                          validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: _telefonoController,
                           keyboardType: TextInputType.phone,
                           decoration: _inputDecoration('Teléfono'),
+                          validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
                         ),
                       ),
                     ],
@@ -220,12 +274,13 @@ class _RegistroScreenState extends State<RegistroScreen> {
                                 style: TextStyle(fontSize: 11, color: Color(0xFF666666)),
                               ),
                             ),
-                            TextField(
+                            TextFormField(
                               controller: _fechaNacController,
                               readOnly: true,
                               decoration: _inputDecoration('AAAA-MM-DD').copyWith(
                                 suffixIcon: const Icon(Icons.calendar_today, size: 18),
                               ),
+                              validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
                               onTap: () async {
                                 DateTime? picked = await showDatePicker(
                                   context: context,
@@ -243,9 +298,10 @@ class _RegistroScreenState extends State<RegistroScreen> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: _direccionController,
                           decoration: _inputDecoration('Dirección'),
+                          validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
                         ),
                       ),
                     ],
@@ -253,18 +309,20 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   const SizedBox(height: 12),
 
                   // EMAIL
-                  TextField(
+                  TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _inputDecoration('Correo Electrónico*'),
+                    validator: (val) => val == null || !val.contains('@') ? 'Email inválido' : null,
                   ),
                   const SizedBox(height: 12),
 
                   // PASSWORD
-                  TextField(
+                  TextFormField(
                     controller: _claveController,
                     obscureText: true,
                     decoration: _inputDecoration('Contraseña (mín. 8)*'),
+                    validator: (val) => val == null || val.length < 8 ? 'Mínimo 8 caracteres' : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -314,6 +372,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
+      errorStyle: const TextStyle(fontSize: 10, height: 0.8),
       hintStyle: const TextStyle(fontSize: 13, color: Colors.black38),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(

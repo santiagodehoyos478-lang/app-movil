@@ -15,7 +15,7 @@ class ApiClient {
       headers: const {
         'Content-Type': 'application/json',
       },
-    );
+    ).timeout(const Duration(seconds: 10));
 
     return _handleResponse(response);
   }
@@ -24,13 +24,16 @@ class ApiClient {
     String endpoint, {
     Map<String, dynamic>? body,
   }) async {
+    final url = '$baseUrl$endpoint';
+    print("🌐 Llamando a API (POST): $url");
+    
     final response = await http.post(
-      Uri.parse('$baseUrl$endpoint'),
+      Uri.parse(url),
       headers: const {
         'Content-Type': 'application/json',
       },
       body: body == null ? null : jsonEncode(body),
-    );
+    ).timeout(const Duration(seconds: 10));
 
     return _handleResponse(response);
   }
@@ -45,7 +48,7 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
       body: body == null ? null : jsonEncode(body),
-    );
+    ).timeout(const Duration(seconds: 10));
 
     return _handleResponse(response);
   }
@@ -56,7 +59,7 @@ class ApiClient {
       headers: const {
         'Content-Type': 'application/json',
       },
-    );
+    ).timeout(const Duration(seconds: 10));
 
     return _handleResponse(response);
   }

@@ -40,6 +40,7 @@ class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      width: MediaQuery.of(context).size.width * 0.75,
       backgroundColor: Colors.white,
       child: SafeArea(
         child: Padding(
@@ -50,12 +51,15 @@ class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'AR SERVICIO TÉCNICO',
-                    style: TextStyle(
-                      color: Color(0xFFE06B6B),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w400,
+                  const Expanded(
+                    child: Text(
+                      'SERVICIO TÉCNICO',
+                      style: TextStyle(
+                        color: Color(0xFFE06B6B),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
@@ -117,12 +121,6 @@ class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
 
               const SizedBox(height: 10),
               _buildMenuItem(
-                'Acerca de Nosotros',
-                isPrimary: false,
-                onTap: () {},
-              ),
-              const SizedBox(height: 10),
-              _buildMenuItem(
                 'Reservar',
                 isPrimary: false,
                 onTap: () => Navigator.pushNamed(context, '/infoFormulario'),
@@ -147,6 +145,8 @@ class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
                 _buildMenuItem(
                   'Cerrar Sesión',
                   isPrimary: false,
+                  isDanger: true,
+                  icon: Icons.logout,
                   onTap: _logout,
                 ),
               ],
@@ -158,23 +158,53 @@ class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
   }
 
   //funcion  para construir los botones
-  Widget _buildMenuItem(String title, {required bool isPrimary, required VoidCallback onTap}) {
+  Widget _buildMenuItem(String title, {
+    required bool isPrimary,
+    required VoidCallback onTap,
+    IconData? icon,
+    bool isDanger = false,
+  }) {
+    Color backgroundColor;
+    Color textColor;
+    Border? border;
+
+    if (isPrimary) {
+      backgroundColor = const Color(0xFFE06B6B);
+      textColor = Colors.white;
+    } else if (isDanger) {
+      backgroundColor = const Color(0xFFFFF0F0);
+      textColor = const Color(0xFFE06B6B);
+      border = Border.all(color: const Color(0xFFE06B6B).withOpacity(0.3));
+    } else {
+      backgroundColor = const Color(0xFFF7F8FA);
+      textColor = const Color(0xFF4A4A4A);
+    }
+
     return InkWell(
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
         decoration: BoxDecoration(
-          color: isPrimary ? const Color(0xFFE06B6B) : const Color(0xFFF7F8FA),
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(10),
+          border: border,
         ),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: isPrimary ? Colors.white : const Color(0xFF4A4A4A),
-            fontSize: 15,
-            fontWeight: isPrimary ? FontWeight.bold : FontWeight.w500,
-          ),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: textColor),
+              const SizedBox(width: 12),
+            ],
+            Text(
+              title,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 15,
+                fontWeight: isPrimary || isDanger ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -213,12 +243,13 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.white, // Fondo blanco para la sección de tarjetas
       appBar: AppBar(
         title: const Text(
-          'AR SERVICIO TÉCNICO',
+          'SERVICIO TÉCNICO',
           style: TextStyle(
             color: Color(0xFFE06B6B),
             fontSize: 18,
             fontWeight: FontWeight.w400,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           if (_userData != null)
@@ -293,9 +324,15 @@ class _HomePageState extends State<HomePage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.calendar_today_outlined, color: Colors.white, size: 20),
-                        SizedBox(width: 12),
-                        Text('Conoce nuestros servicios', style: TextStyle(color: Colors.white)),
-                        SizedBox(width: 12),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Conoce nuestros servicios',
+                            style: TextStyle(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 8),
                         Icon(Icons.arrow_forward, color: Colors.white, size: 20),
                       ],
                     ),
@@ -324,13 +361,19 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Icon(Icons.phone_outlined, color: Colors.white, size: 28),
                         SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('WhatsApp', style: TextStyle(color: Colors.white, fontSize: 12)),
-                            Text('3005635595', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                          ],
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('WhatsApp', style: TextStyle(color: Colors.white, fontSize: 12)),
+                              Text(
+                                '3005635595',
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

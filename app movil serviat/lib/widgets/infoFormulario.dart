@@ -95,8 +95,8 @@ class InformacionPaso1 extends StatelessWidget {
                                 Navigator.pushNamed(context, '/Formulario');
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D6EFD), // Color primary típico de Bootstrap
-                                padding: const EdgeInsets.symmetric(vertical: 16), // py-2
+                                backgroundColor: const Color(0xFFE06B6B), // Salmón/Rojo de la marca
+                                padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
