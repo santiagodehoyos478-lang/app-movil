@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/app_dana.dart';
+import '../theme/tecnico_estilo.dart';
 
 class AppDanaTheme {
   AppDanaTheme._();

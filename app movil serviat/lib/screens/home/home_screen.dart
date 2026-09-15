@@ -531,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: recientes.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final s = recientes[index];
                 return ListTile(

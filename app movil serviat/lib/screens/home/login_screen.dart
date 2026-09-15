@@ -15,7 +15,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final ApiClient _apiClient = const ApiClient();
+  
+  // CORRECCIÓN: Se quitó la palabra "const" para evitar que Flutter memorice la URL vieja
+  final ApiClient _apiClient = ApiClient(); 
   
   bool _loading = false;
   String? _error;
@@ -57,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.5), // modal-overlay
+      backgroundColor: Colors.black.withValues(alpha: 0.5), // modal-overlay
       body: Center(
         child: SingleChildScrollView(
           child: Container(
@@ -108,19 +110,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // MENSAJE ERROR
+                // MENSAJE ERROR / ÉXITO
                 if (_error != null) ...[
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
+                      // Si el mensaje es de éxito, lo pintamos de verde claro, si no, rojo claro
+                      color: _error!.contains("Revisa tu correo") ? const Color(0xFFD1FAE5) : const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
                       _error!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.red,
+                      style: TextStyle(
+                        // Texto verde oscuro para éxito, rojo para error
+                        color: _error!.contains("Revisa tu correo") ? const Color(0xFF065F46) : Colors.red,
                         fontSize: 13,
                       ),
                     ),
@@ -147,7 +151,48 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                   decoration: _inputDecoration('Tu contraseña'),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
+
+                // 👇 NUEVO: BOTÓN DE RECUPERAR CONTRASEÑA
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () async {
+                      if (_emailController.text.isEmpty) {
+                        setState(() => _error = "Escribe tu correo arriba para recuperar la clave.");
+                        return;
+                      }
+                      
+                      setState(() {
+                        _error = null;
+                        _loading = true;
+                      });
+
+                      try {
+                        await _apiClient.post('/recuperar-clave', body: {'email': _emailController.text});
+                        
+                        setState(() {
+                          _loading = false;
+                          _error = "Revisa tu correo. Te enviamos un enlace de recuperación."; 
+                        });
+                      } catch (e) {
+                        setState(() {
+                          _loading = false;
+                          _error = "Error: No se pudo enviar el correo de recuperación.";
+                        });
+                      }
+                    },
+                    child: const Text(
+                      '¿Olvidaste tu contraseña?',
+                      style: TextStyle(
+                        color: Color(0xFFE57373), 
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // BOTÓN LOGIN
                 ElevatedButton(

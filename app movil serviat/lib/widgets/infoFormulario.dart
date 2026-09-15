@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../screens/home/Formulario.dart';
-import '../screens/home/ValidarServicio.dart';
 
 class InformacionPaso1 extends StatelessWidget {
   const InformacionPaso1({super.key});

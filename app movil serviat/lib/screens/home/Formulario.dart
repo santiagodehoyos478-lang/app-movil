@@ -110,7 +110,7 @@ class _FormularioState extends State<Formulario> {
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: azulOscuro.withOpacity(0.1), width: 1),
+            side: BorderSide(color: azulOscuro.withValues(alpha: 0.1), width: 1),
           ),
           title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, color: azulOscuro)),
           content: Text(mensaje, style: const TextStyle(color: azulOscuro)),
@@ -147,7 +147,7 @@ class _FormularioState extends State<Formulario> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: azulOscuro.withOpacity(0.1),
+                          color: azulOscuro.withValues(alpha: 0.1),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -180,7 +180,7 @@ class _FormularioState extends State<Formulario> {
                           const Text("Categoría del equipo", style: TextStyle(fontWeight: FontWeight.w600, color: azulOscuro)),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: _datosValidar["categoria"],
+                            initialValue: _datosValidar["categoria"],
                             decoration: _inputDecoration(),
                             icon: const Icon(Icons.keyboard_arrow_down, color: azulOscuro),
                             items: ["Industrial", "Doméstico"].map((String value) {
@@ -223,7 +223,7 @@ class _FormularioState extends State<Formulario> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: azulOscuro.withOpacity(0.2)),
+                              border: Border.all(color: azulOscuro.withValues(alpha: 0.2)),
                             ),
                             child: Theme(
                               data: Theme.of(context).copyWith(
@@ -255,9 +255,9 @@ class _FormularioState extends State<Formulario> {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: azulOscuro.withOpacity(0.05),
+                              color: azulOscuro.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: azulOscuro.withOpacity(0.1)),
+                              border: Border.all(color: azulOscuro.withValues(alpha: 0.1)),
                             ),
                             child: const Column(
                               children: [
@@ -294,7 +294,7 @@ class _FormularioState extends State<Formulario> {
                                   decoration: BoxDecoration(
                                     color: isSelected ? colorSalmon : Colors.white,
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: isSelected ? colorSalmon : azulOscuro.withOpacity(0.2)),
+                                    border: Border.all(color: isSelected ? colorSalmon : azulOscuro.withValues(alpha: 0.2)),
                                   ),
                                   child: Text(
                                     h,
@@ -319,7 +319,7 @@ class _FormularioState extends State<Formulario> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: azulOscuro.withOpacity(0.3),
+                                  color: azulOscuro.withValues(alpha: 0.3),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -447,11 +447,11 @@ class _FormularioState extends State<Formulario> {
             color: isSelected ? colorSalmon : const Color(0xFFE2E8F0),
             width: isSelected ? 2 : 1,
           ),
-          boxShadow: isSelected ? [BoxShadow(color: colorSalmon.withOpacity(0.1), blurRadius: 10, spreadRadius: 2)] : [],
+          boxShadow: isSelected ? [BoxShadow(color: colorSalmon.withValues(alpha: 0.1), blurRadius: 10, spreadRadius: 2)] : [],
         ),
         child: Column(
           children: [
-            Icon(icon, size: 28, color: isSelected ? colorSalmon : azulOscuro.withOpacity(0.5)),
+            Icon(icon, size: 28, color: isSelected ? colorSalmon : azulOscuro.withValues(alpha: 0.5)),
             const SizedBox(height: 8),
             Text(
               text,

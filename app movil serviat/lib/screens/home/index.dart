@@ -77,7 +77,7 @@ class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF0F4FF),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF2448B5).withOpacity(0.1)),
+                    border: Border.all(color: const Color(0xFF2448B5).withValues(alpha: 0.1)),
                   ),
                   child: Row(
                     children: [
@@ -174,7 +174,7 @@ class _CustomMenuDrawerState extends State<CustomMenuDrawer> {
     } else if (isDanger) {
       backgroundColor = const Color(0xFFFFF0F0);
       textColor = const Color(0xFFE06B6B);
-      border = Border.all(color: const Color(0xFFE06B6B).withOpacity(0.3));
+      border = Border.all(color: const Color(0xFFE06B6B).withValues(alpha: 0.3));
     } else {
       backgroundColor = const Color(0xFFF7F8FA);
       textColor = const Color(0xFF4A4A4A);
@@ -369,7 +369,7 @@ class _HomePageState extends State<HomePage> {
                               Text('WhatsApp', style: TextStyle(color: Colors.white, fontSize: 12)),
                               Text(
                                 '3005635595',
-                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
@@ -461,7 +461,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -478,7 +478,7 @@ class _HomePageState extends State<HomePage> {
             begin: Alignment.bottomCenter,
             end: Alignment.center,
             colors: [
-              Colors.black.withOpacity(0.7),
+              Colors.black.withValues(alpha: 0.7),
               Colors.transparent,
             ],
           ),
@@ -501,7 +501,7 @@ class _HomePageState extends State<HomePage> {
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.white, width: 1.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                backgroundColor: Colors.white.withOpacity(0.1),
+                backgroundColor: Colors.white.withValues(alpha: 0.1),
               ),
               onPressed: () {
                 Navigator.pushNamed(context, '/infoFormulario');

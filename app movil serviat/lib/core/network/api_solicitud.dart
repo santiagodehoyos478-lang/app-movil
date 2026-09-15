@@ -1,245 +1,54 @@
 import 'dart:convert';
+
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:mysql1/mysql1.dart';
-import 'package:bcrypt/bcrypt.dart';
+import 'package:supabase/supabase.dart';
+import '../constants/app_credenciales.dart';
 
 class SolicitudApi {
-  // Configura aquí tus credenciales de MySQL
-  final ConnectionSettings dbSettings = ConnectionSettings(
-    host: 'localhost',
-    port: 3306,
-    user: 'root',
-    db: 'serviat',
+  // Conexión con Supabase
+  final SupabaseClient supabase = SupabaseClient(
+    AppConstants.supabaseUrl,
+    AppConstants.publishable_key,
   );
 
   Router get router {
     final router = Router();
-    router.post('/api/solicitud', _crearSolicitud);
-    
-    // Auth
-    router.post('/api/registro', _registrarUsuario);
-    router.post('/api/login', _loginUsuario);
 
-    // Admin
-    router.get('/api/admin/solicitudes', _consultarSolicitudesAdmin);
-    router.put('/api/admin/solicitudes/<id>', _actualizarSolicitudAdmin);
-    router.delete('/api/admin/solicitudes/<id>', _eliminarSolicitudAdmin);
-
-    // Técnico
-    router.get('/api/tecnico/<id>/solicitudes', _consultarSolicitudesTecnico);
-    router.put('/api/tecnico/solicitud/<id>/aceptar', _aceptarSolicitudTecnico);
-    router.put('/api/tecnico/solicitud/<id>/rechazar', _rechazarSolicitudTecnico);
+    // Crear solicitud
+    router.post(
+      '/api/solicitud',
+      _crearSolicitud,
+    );
 
     return router;
   }
 
-  // --- MÓVIL: Registro ---
-  Future<Response> _registrarUsuario(Request request) async {
-    print("📩 Intentando registrar nuevo usuario...");
-    MySqlConnection? db;
-    try {
-      final payload = await request.readAsString();
-      print("📦 Payload recibido: $payload");
-      final body = json.decode(payload);
-
-      print("🔌 Conectando a MySQL...");
-      db = await MySqlConnection.connect(dbSettings).timeout(const Duration(seconds: 5));
-      print("✅ Conexión exitosa a MySQL");
-      
-      final passwordHash = BCrypt.hashpw(body['clave'], BCrypt.gensalt());
-
-      final sql = '''
-        INSERT INTO usuario (nombre, email, clave, telefono, direccion, id_rol, numero_documento, tipo_documento, fecha_nacimiento)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ''';
-      
-      await db.query(sql, [
-        body['nombre'],
-        body['email'],
-        passwordHash,
-        body['telefono'],
-        body['direccion'],
-        body['id_rol'],
-        body['numero_documento'],
-        body['tipo_documento'],
-        body['fecha_nacimiento']
-      ]);
-
-      print("✅ Usuario registrado con éxito: ${body['email']}");
-      return Response.ok(json.encode({"mensaje": "Usuario registrado con éxito"}),
-          headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      print("❌ Error en registro: $e");
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
-
-  // --- MÓVIL: Login ---
-  Future<Response> _loginUsuario(Request request) async {
-    print("🔑 Intento de inicio de sesión...");
-    MySqlConnection? db;
-    try {
-      final body = json.decode(await request.readAsString());
-      print("📧 Email: ${body['email']}");
-      db = await MySqlConnection.connect(dbSettings);
-
-      final results = await db.query('SELECT * FROM usuario WHERE email = ?', [body['email']]);
-
-      if (results.isEmpty) {
-        return Response.forbidden(json.encode({"error": "Usuario no encontrado"}),
-            headers: {'Content-Type': 'application/json'});
-      }
-
-      final user = results.first;
-      if (!BCrypt.checkpw(body['clave'], user['clave'])) {
-        return Response.forbidden(json.encode({"error": "Contraseña incorrecta"}),
-            headers: {'Content-Type': 'application/json'});
-      }
-
-      return Response.ok(json.encode({
-        "id": user['id'],
-        "nombre": user['nombre'],
-        "email": user['email'],
-        "id_rol": user['id_rol']
-      }), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
-
-  // --- ADMIN: Consultar Solicitudes ---
-  Future<Response> _consultarSolicitudesAdmin(Request request) async {
-    MySqlConnection? db;
-    try {
-      db = await MySqlConnection.connect(dbSettings);
-      final results = await db.query('''
-        SELECT s.*, e.nombre_equipo, e.marca_equipo, u.nombre as nombre_cliente
-        FROM solicitud s
-        JOIN equipo e ON s.id_equipo = e.id
-        JOIN usuario u ON s.usuario_id_cliente = u.id
-      ''');
-
-      final list = results.map((row) => row.fields).toList();
-      return Response.ok(json.encode(list), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
-
-  // --- ADMIN: Actualizar Solicitud ---
-  Future<Response> _actualizarSolicitudAdmin(Request request, String id) async {
-    MySqlConnection? db;
-    try {
-      final body = json.decode(await request.readAsString());
-      db = await MySqlConnection.connect(dbSettings);
-
-      await db.query(
-        'UPDATE solicitud SET id_estado_solicitud = ?, usuario_id_tecnico = ? WHERE id = ?',
-        [body['estado'], body['tecnicoId'], id]
-      );
-
-      return Response.ok(json.encode({"mensaje": "Solicitud actualizada"}),
-          headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
-
-  // --- ADMIN: Eliminar Solicitud ---
-  Future<Response> _eliminarSolicitudAdmin(Request request, String id) async {
-    MySqlConnection? db;
-    try {
-      db = await MySqlConnection.connect(dbSettings);
-      await db.query('DELETE FROM solicitud WHERE id = ?', [id]);
-      return Response.ok(json.encode({"mensaje": "Solicitud eliminada"}),
-          headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
-
-  // --- TÉCNICO: Consultar Asignadas ---
-  Future<Response> _consultarSolicitudesTecnico(Request request, String id) async {
-    MySqlConnection? db;
-    try {
-      db = await MySqlConnection.connect(dbSettings);
-      final results = await db.query('''
-        SELECT s.*, u.nombre as nombre_cliente, e.nombre_equipo
-        FROM solicitud s
-        JOIN usuario u ON s.usuario_id_cliente = u.id
-        JOIN equipo e ON s.id_equipo = e.id
-        WHERE s.usuario_id_tecnico = ?
-      ''', [id]);
-
-      final list = results.map((row) => row.fields).toList();
-      return Response.ok(json.encode(list), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
-
-  // --- TÉCNICO: Aceptar Solicitud ---
-  Future<Response> _aceptarSolicitudTecnico(Request request, String id) async {
-    MySqlConnection? db;
-    try {
-      db = await MySqlConnection.connect(dbSettings);
-      // Estado 2: Aceptado
-      await db.query('UPDATE solicitud SET id_estado_solicitud = 2 WHERE id = ?', [id]);
-      
-      return Response.ok(json.encode({"mensaje": "Solicitud aceptada"}),
-          headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
-
-  // --- TÉCNICO: Rechazar Solicitud ---
-  Future<Response> _rechazarSolicitudTecnico(Request request, String id) async {
-    MySqlConnection? db;
-    try {
-      db = await MySqlConnection.connect(dbSettings);
-      // Estado 4: Cancelado/Rechazado
-      await db.query('UPDATE solicitud SET id_estado_solicitud = 4 WHERE id = ?', [id]);
-      
-      return Response.ok(json.encode({"mensaje": "Solicitud rechazada"}),
-          headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: json.encode({"error": e.toString()}),
-          headers: {'Content-Type': 'application/json'});
-    } finally {
-      await db?.close();
-    }
-  }
+  // =========================================================
+  // CREAR SOLICITUD
+  // =========================================================
 
   Future<Response> _crearSolicitud(Request request) async {
-    MySqlConnection? db;
     try {
-      // 1. Leer y decodificar el JSON de la solicitud
+      print("📩 Intentando crear una nueva solicitud...");
+
+      // 1. Leer JSON
       final payload = await request.readAsString();
+
+      if (payload.isEmpty) {
+        return Response.badRequest(
+          body: json.encode({
+            "error": "El cuerpo de la solicitud está vacío",
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        );
+      }
+
       final body = json.decode(payload);
 
+      // 2. Obtener los datos
       final nombreEquipo = body['nombre_equipo'];
       final modeloEquipo = body['modelo_equipo'];
       final idCategoriaEquipo = body['id_categoria_equipo'];
@@ -248,61 +57,87 @@ class SolicitudApi {
       final direccionServicio = body['direccion_servicio'];
       final usuarioIdCliente = body['usuario_id_cliente'];
       final idEstadoSolicitud = body['id_estado_solicitud'];
-      final usuarioIdAdministrador = body['usuario_id_administrador'];
+      final usuarioIdAdministrador =
+          body['usuario_id_administrador'];
 
-      // 2. Conectar a la base de datos
-      db = await MySqlConnection.connect(dbSettings);
+      print("📦 Datos de solicitud recibidos");
 
-      // 3. Insertar el equipo primero
-      final sqlEquipo = '''
-        INSERT INTO equipo (nombre_equipo, marca_equipo, modelo_equipo, id_categoria_equipo)
-        VALUES (?, 'No especificada', ?, ?)
-      ''';
+      // =====================================================
+      // 3. CREAR EQUIPO EN SUPABASE
+      // =====================================================
 
-      final equipoResult = await db.query(sqlEquipo, [
-        nombreEquipo,
-        modeloEquipo,
-        idCategoriaEquipo
-      ]);
+      final equipoResponse = await supabase
+          .from('equipo')
+          .insert({
+            'nombre_equipo': nombreEquipo,
+            'marca_equipo': 'No especificada',
+            'modelo_equipo': modeloEquipo,
+            'id_categoria_equipo': idCategoriaEquipo,
+          })
+          .select('id')
+          .single();
 
-      final idDelNuevoEquipo = equipoResult.insertId;
+      final idDelNuevoEquipo = equipoResponse['id'];
 
-      // 4. Insertar la solicitud vinculada al equipo creado
-      final sqlSolicitud = '''
-        INSERT INTO solicitud (fecha_solicitud, descripcion, direccion_servicio, usuario_id_administrador, usuario_id_cliente, id_estado_solicitud, id_equipo)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      ''';
+      print(
+        "✅ Equipo creado con ID: $idDelNuevoEquipo",
+      );
 
-      final valoresSolicitud = [
-        fechaSolicitud,
-        descripcion,
-        direccionServicio,
-        usuarioIdAdministrador,
-        usuarioIdCliente,
-        idEstadoSolicitud,
-        idDelNuevoEquipo
-      ];
+      // =====================================================
+      // 4. CREAR SOLICITUD EN SUPABASE
+      // =====================================================
 
-      final solicitudResult = await db.query(sqlSolicitud, valoresSolicitud);
+      final solicitudResponse = await supabase
+          .from('solicitud')
+          .insert({
+            'fecha_solicitud': fechaSolicitud,
+            'descripcion': descripcion,
+            'direccion_servicio': direccionServicio,
+            'usuario_id_administrador':
+                usuarioIdAdministrador,
+            'usuario_id_cliente': usuarioIdCliente,
+            'id_estado_solicitud': idEstadoSolicitud,
+            'id_equipo': idDelNuevoEquipo,
+          })
+          .select('id')
+          .single();
 
-      // 5. Retornar éxito
+      final idSolicitud = solicitudResponse['id'];
+
+      print(
+        "✅ Solicitud creada con ID: $idSolicitud",
+      );
+
+      // =====================================================
+      // 5. RESPUESTA
+      // =====================================================
+
       return Response.ok(
         json.encode({
-          "mensaje": "¡Solicitud y equipo guardados en MySQL con éxito!",
-          "id_solicitud": solicitudResult.insertId
+          "mensaje":
+              "¡Solicitud y equipo guardados en Supabase con éxito!",
+          "id_solicitud": idSolicitud,
+          "id_equipo": idDelNuevoEquipo,
         }),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (e) {
+      print(
+        "❌ Error creando solicitud: $e",
       );
 
-    } catch (e) {
-      print("❌ Error en el servidor: $e");
       return Response.internalServerError(
-        body: json.encode({"error": "Error al guardar el equipo o la solicitud"}),
-        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          "error":
+              "Error al guardar el equipo o la solicitud",
+          "detalle": e.toString(),
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       );
-    } finally {
-      // Siempre cerrar la conexión
-      await db?.close();
     }
   }
 }

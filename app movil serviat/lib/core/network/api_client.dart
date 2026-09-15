@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../constants/app_constants.dart';
+import '../constants/app_credenciales.dart';
 
 class ApiClient {
   final String baseUrl;
 
+  // 👇 Cambia esto para que apunte a localhost
   const ApiClient({
-    this.baseUrl = AppConstants.apiBaseUrl,
+    this.baseUrl = 'http://192.168.40.29:8080/api',
   });
 
   Future<dynamic> get(String endpoint) async {

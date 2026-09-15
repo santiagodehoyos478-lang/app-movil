@@ -35,10 +35,11 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
 
       // Equivalente a JSON.parse() de React
       final userGuardado = jsonDecode(userString);
+      print("📦 Usuario recuperado de SharedPreferences: $userGuardado");
 
       final int idEstadoPendiente = 1;
       final int idCategoria = datos['categoria'] == "Industrial" ? 1 : 2;
-      final int idAdministrador = 1;
+      final Null idAdministrador = null;
 
       // 1. Objeto para guardar en MySQL a través de tu API Node.js
       final Map<String, dynamic> datosParaMySQL = {
@@ -48,9 +49,9 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
         "fecha_solicitud": datos['fechaSeleccionada'],
         "descripcion": datos['descripcion'],
         "direccion_servicio": datos['direccion'],
-        "usuario_id_cliente": userGuardado['id'],
+        "usuario_id_cliente": userGuardado['usuario_id_cliente'],
         "id_estado_solicitud": idEstadoPendiente,
-        "usuario_id_administrador": idAdministrador
+        "usuario_id_administrador": idAdministrador,
       };
 
       // Petición a la base de datos
@@ -166,7 +167,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10)),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
                       ],
                     ),
                     child: Column(
@@ -182,7 +183,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF9F0), // Fondo crema/naranja suave
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: colorSalmon.withOpacity(0.5)),
+                            border: Border.all(color: colorSalmon.withValues(alpha: 0.5)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,7 +285,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
