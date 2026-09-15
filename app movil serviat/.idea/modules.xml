@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/app_movil_serviat.iml" filepath="$PROJECT_DIR$/app_movil_serviat.iml" />
-      <module fileurl="file://$PROJECT_DIR$/android/app_movil_serviat_android.iml" filepath="$PROJECT_DIR$/android/app_movil_serviat_android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/app movil serviat.iml" filepath="$PROJECT_DIR$/.idea/app movil serviat.iml" />
     </modules>
   </component>
 </project>

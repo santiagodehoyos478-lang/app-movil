@@ -1,0 +1,81 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../constants/app_credenciales.dart';
+
+class ApiClient {
+  final String baseUrl;
+
+  // 👇 Cambia esto para que apunte a localhost
+  const ApiClient({
+    this.baseUrl = 'http://192.168.40.29:8080/api',
+  });
+
+  Future<dynamic> get(String endpoint) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: const {
+        'Content-Type': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> post(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) async {
+    final url = '$baseUrl$endpoint';
+    print("🌐 Llamando a API (POST): $url");
+    
+    final response = await http.post(
+      Uri.parse(url),
+      headers: const {
+        'Content-Type': 'application/json',
+      },
+      body: body == null ? null : jsonEncode(body),
+    ).timeout(const Duration(seconds: 10));
+
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> put(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: const {
+        'Content-Type': 'application/json',
+      },
+      body: body == null ? null : jsonEncode(body),
+    ).timeout(const Duration(seconds: 10));
+
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> delete(String endpoint) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: const {
+        'Content-Type': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    return _handleResponse(response);
+  }
+
+  dynamic _handleResponse(http.Response response) {
+    final data = response.body.isEmpty
+        ? null
+        : jsonDecode(response.body);
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return data;
+    }
+
+    throw Exception(
+      'Error ${response.statusCode}: ${response.body}',
+    );
+  }
+}
