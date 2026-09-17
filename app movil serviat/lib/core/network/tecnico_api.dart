@@ -3,12 +3,13 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:supabase/supabase.dart';
+import '../constants/app_credenciales.dart';
 
 class TecnicoApi {
   // Conexión con Supabase
   final SupabaseClient supabase = SupabaseClient(
-    'supabaseUrl',
-    'publishable_key',
+    AppConstants.supabaseUrl,
+    AppConstants.publishable_key,
   );
 
   Router get router {
@@ -41,47 +42,59 @@ class TecnicoApi {
     String id,
   ) async {
     try {
-      print("🔎 Consultando solicitudes del técnico: $id");
+      print("🔎 [TECNICO] Consultando solicitudes disponibles (Completadas por Admin)...");
 
-      final results = await supabase
+      // 1. Buscamos solicitudes en estado 3 (Listas para asignar)
+      final solicitudesData = await supabase
           .from('solicitud')
-          .select('''
-            *,
-            usuario:usuario_id_cliente (
-              nombre
-            ),
-            equipo:id_equipo (
-              nombre_equipo
-            )
-          ''')
-          .eq('usuario_id_tecnico', id);
+          .select()
+          .eq('id_estado_solicitud', 3);
 
-      final list = results.map((row) {
+      // 2. Obtener nombres de clientes y equipos con nombres de columna corregidos
+      final usuariosData = await supabase.from('usuario').select('id_usuario, nombre_1, apellido_1');
+      final equiposData = await supabase.from('equipo').select();
+
+      final usuariosMap = {
+        for (var u in usuariosData as List) (u['id_usuario']?.toString() ?? ''): u
+      };
+      final equiposMap = {
+        for (var e in equiposData as List) (e['id_equipo']?.toString() ?? ''): e
+      };
+
+      // 3. Mapear al modelo del técnico
+      final list = (solicitudesData as List).map((row) {
+        final String clienteId = row['usuario_id_cliente']?.toString() ?? '';
+        final String equipoId = row['id_equipo']?.toString() ?? '';
+        
+        final cliente = usuariosMap[clienteId];
+        final equipo = equiposMap[equipoId];
+        
+        String nombreCliente = "Cliente Desconocido";
+        if (cliente != null) {
+          nombreCliente = "${cliente['nombre_1'] ?? ''} ${cliente['apellido_1'] ?? ''}".trim();
+        }
+
         return {
-          ...row,
-          'nombre_cliente': row['usuario']?['nombre'] ?? '',
-          'nombre_equipo': row['equipo']?['nombre_equipo'] ?? '',
+          'id': row['id_solicitud'],
+          'cliente': nombreCliente,
+          'descripcion': row['descripcion'] ?? 'Sin descripción',
+          'fecha': row['fecha_solicitud']?.toString() ?? '',
+          'estado': row['id_estado_solicitud'] == 2 ? 'En Proceso' : 'Disponible',
+          'equipo': equipo?['nombre_equipo'] ?? 'Equipo técnico',
         };
       }).toList();
 
-      print("✅ Solicitudes encontradas: ${list.length}");
+      print("✅ [TECNICO] Solicitudes encontradas: ${list.length}");
 
       return Response.ok(
         json.encode(list),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
-      print("❌ Error consultando solicitudes: $e");
-
+      print("❌ [TECNICO] Error consultando solicitudes: $e");
       return Response.internalServerError(
-        body: json.encode({
-          "error": e.toString(),
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        body: json.encode({"error": e.toString()}),
+        headers: {'Content-Type': 'application/json'},
       );
     }
   }

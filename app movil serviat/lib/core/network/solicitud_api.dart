@@ -37,9 +37,41 @@ class SolicitudApi {
       final idEstadoSolicitud = body['id_estado_solicitud'];
       final usuarioIdAdministrador = body['usuario_id_administrador'];
 
+      if (usuarioIdCliente == null || fechaSolicitud == null || descripcion == null) {
+        print("❌ Error: Faltan datos obligatorios (cliente, fecha o descripción).");
+        return Response.badRequest(
+          body: json.encode({"error": "Faltan datos obligatorios para procesar la solicitud."}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      print("📦 Datos recibidos para cliente ID: $usuarioIdCliente. Verificando duplicados...");
+
       // ==========================================
-      // 1. CREAR EQUIPO EN SUPABASE
+      // 0. VERIFICAR DUPLICADOS
       // ==========================================
+      final existingRequest = await supabase
+          .from('solicitud')
+          .select('id_solicitud, id_equipo')
+          .eq('usuario_id_cliente', usuarioIdCliente)
+          .eq('fecha_solicitud', fechaSolicitud)
+          .eq('descripcion', descripcion)
+          .maybeSingle();
+
+      if (existingRequest != null) {
+        print("⚠️ Solicitud duplicada detectada. Retornando existente.");
+        return Response.ok(
+          json.encode({
+            "mensaje": "¡Solicitud ya registrada anteriormente!",
+            "id_solicitud": existingRequest['id_solicitud'],
+            "id_equipo": existingRequest['id_equipo'],
+            "duplicado": true
+          }),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      print("📩 Intentando crear solicitud en Supabase...");
 
       final equipoResponse = await supabase
           .from('equipo')

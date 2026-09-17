@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../../models/producto_model_dana.dart';
 import '../../services/producto_serviceeee_dana.dart';
@@ -25,7 +27,17 @@ class _HomeDanaScreenState extends State<HomeDanaScreen> {
 
   Future<void> cargarSolicitudes() async {
     setState(() => cargando = true);
-    final resultado = await service.obtenerProductos('1');
+    
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString('user');
+    String tecnicoId = '1'; // Default
+    
+    if (userStr != null) {
+      final userData = jsonDecode(userStr);
+      tecnicoId = (userData['id_usuario'] ?? userData['id'] ?? '1').toString();
+    }
+
+    final resultado = await service.obtenerProductos(tecnicoId);
 
     setState(() {
       solicitudes = resultado;
@@ -86,46 +98,73 @@ class _HomeDanaScreenState extends State<HomeDanaScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF173F7A),
+        backgroundColor: const Color(0xFF2448B5), // Azul oscuro marca
         foregroundColor: Colors.white,
         title: const Text(
-          'ServiAT',
+          'ServiAT - Técnico',
           style: TextStyle(
             fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: "Cerrar Sesión",
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('user');
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+              }
+            },
+          ),
+        ],
         elevation: 0,
       ),
       body: Column(
         children: [
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.all(12),
+            margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 20,
+              horizontal: 24,
+              vertical: 24,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF214F8F),
-              borderRadius: BorderRadius.circular(3),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2448B5), Color(0xFF3B4CEB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2448B5).withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Panel Técnico',
+                  'Panel de Control',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 6),
                 Text(
-                  'Solicitudes asignadas',
+                  'Solicitudes Disponibles para Atender',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 12,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -134,19 +173,29 @@ class _HomeDanaScreenState extends State<HomeDanaScreen> {
           Expanded(
             child: cargando
                 ? const Center(
-                    child: CircularProgressIndicator(),
+                    child: CircularProgressIndicator(color: Color(0xFFE06B6B)),
                   )
                 : RefreshIndicator(
                     onRefresh: cargarSolicitudes,
+                    color: const Color(0xFFE06B6B),
                     child: solicitudes.isEmpty
                         ? const Center(
-                            child: Text(
-                              'No tienes solicitudes asignadas',
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.assignment_turned_in_outlined, size: 60, color: Colors.grey),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No hay nuevas solicitudes\ndisponibles en este momento',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                                ),
+                              ],
                             ),
                           )
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
+                              horizontal: 16,
                             ),
                             itemCount: solicitudes.length,
                             itemBuilder: (context, index) {

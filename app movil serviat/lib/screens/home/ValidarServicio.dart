@@ -21,6 +21,8 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
   final ApiClient _apiClient = const ApiClient();
 
   Future<void> _confirmarReserva(Map<String, dynamic> datos) async {
+    if (_cargando) return; // 🛑 Evita clics dobles mientras se procesa
+
     setState(() {
       _cargando = true;
     });
@@ -49,7 +51,7 @@ class _ValidarInformacionState extends State<ValidarInformacion> {
         "fecha_solicitud": datos['fechaSeleccionada'],
         "descripcion": datos['descripcion'],
         "direccion_servicio": datos['direccion'],
-        "usuario_id_cliente": userGuardado['usuario_id_cliente'],
+        "usuario_id_cliente": userGuardado['usuario_id_cliente'] ?? userGuardado['id'], // 👈 Aseguramos que se envíe el ID correcto
         "id_estado_solicitud": idEstadoPendiente,
         "usuario_id_administrador": idAdministrador,
       };

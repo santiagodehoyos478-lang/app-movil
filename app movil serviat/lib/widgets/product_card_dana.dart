@@ -16,166 +16,175 @@ class ProductDanaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool pendiente = producto.estado == 'Pendiente';
+    final bool pendiente = producto.estado == 'Disponible';
+    final Color primaryColor = const Color(0xFFE06B6B); // Salmón de la marca
+    final Color statusColor = pendiente ? const Color(0xFFF59E0B) : const Color(0xFF10B981);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.05)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              producto.numeroSolicitud,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            // Encabezado de la tarjeta con color lateral
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.05),
+                border: Border(left: BorderSide(color: statusColor, width: 4)),
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Cliente: ${producto.cliente}',
-              style: const TextStyle(
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Descripción: ${producto.descripcion}',
-              style: const TextStyle(
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Fecha: ${producto.fecha}',
-              style: const TextStyle(
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.start,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (pendiente) ...[
-                  ElevatedButton(
-                    onPressed: onAceptar,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF198754),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      minimumSize: Size.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    child: const Text(
-                      'Aceptar',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    producto.numeroSolicitud.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: statusColor,
+                      letterSpacing: 1.2,
                     ),
                   ),
-                  ElevatedButton(
-                    onPressed: onRechazar,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC3545),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      minimumSize: Size.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    child: const Text(
-                      'Rechazar',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  _buildStatusBadge(producto.estado, statusColor),
                 ],
-                TextButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Proceso de ${producto.numeroSolicitud}',
+              ),
+            ),
+            
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: primaryColor.withValues(alpha: 0.1),
+                        child: Icon(Icons.person_outline, size: 20, color: primaryColor),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "CLIENTE",
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 0.5),
+                            ),
+                            Text(
+                              producto.cliente,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ],
                   ),
-                  child: const Text(
-                    'Ver proceso de trabajo',
-                    style: TextStyle(
-                      color: Color(0xFF0D6EFD),
-                      fontSize: 12,
-                      decoration: TextDecoration.underline,
+                  const SizedBox(height: 18),
+                  
+                  _infoRow(Icons.description_outlined, "Descripción", producto.descripcion),
+                  const SizedBox(height: 12),
+                  _infoRow(Icons.calendar_today_outlined, "Fecha de servicio", producto.fecha),
+                  
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 18),
+                    child: Divider(height: 1, thickness: 0.5),
+                  ),
+                  
+                  if (pendiente) 
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: onAceptar,
+                            icon: const Icon(Icons.check_circle_outline, size: 18),
+                            label: const Text("ACEPTAR"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: onRechazar,
+                            icon: const Icon(Icons.cancel_outlined, size: 18),
+                            label: const Text("RECHAZAR"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFEF4444),
+                              side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.arrow_forward, size: 16),
+                        label: const Text("Gestionar proceso de trabajo"),
+                        style: TextButton.styleFrom(foregroundColor: primaryColor),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-            if (!pendiente) ...[
-              const SizedBox(height: 5),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: producto.estado == 'Aceptada'
-                        ? Colors.green.shade100
-                        : Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    producto.estado,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: producto.estado == 'Aceptada'
-                          ? Colors.green.shade800
-                          : Colors.red.shade800,
-                    ),
-                  ),
-                ),
+                ],
               ),
-            ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[400]),
+        const SizedBox(width: 10),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563), height: 1.4),
+              children: [
+                TextSpan(text: "$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: value),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusBadge(String estado, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        estado.toUpperCase(),
+        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.5),
       ),
     );
   }
