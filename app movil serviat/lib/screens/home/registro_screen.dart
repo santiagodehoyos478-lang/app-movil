@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:app_movil_serviat/core/theme/estilo_registro.dart';
-import '../../core/network/api_solicitud.dart';
+
 import 'package:app_movil_serviat/services/registro_service.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
 
 
-  static const String _baseUrl='http//192.168.40.29:8080';
+    static const String _baseUrl = 'http://192.168.0.15:8080';
 
   @override
   State<RegistroScreen> createState() => _RegistroScreenState();
@@ -92,7 +92,16 @@ class _RegistroScreenState extends State<RegistroScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+
+          // Redirección inteligente según el Rol seleccionado
+          String rutaDestino = '/';
+          if (_rol == '2') {
+            rutaDestino = '/dana'; // Panel del Técnico
+          } else if (_rol == '3') {
+            rutaDestino = '/dashboard'; // Panel del Administrador
+          }
+
+          Navigator.pushNamedAndRemoveUntil(context, rutaDestino, (route) => false);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

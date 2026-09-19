@@ -195,6 +195,24 @@ class ServicioConfirmado extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 12),
+
+                          // --- BOTÓN: Volver al Menú Principal ---
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF2448B5), width: 2),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
+                              child: const Text(
+                                "Volver al Menú Principal",
+                                style: TextStyle(color: Color(0xFF2448B5), fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

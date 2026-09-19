@@ -6,7 +6,7 @@ class RegistroService {
   // 👉 Cambia esto por la URL donde corre tu backend shelf
   // Si pruebas en emulador Android usa 10.0.2.2 en vez de localhost
   // Si pruebas en celular físico, usa la IP de tu PC (ej: 192.168.1.X)
-  static const String _baseUrl = 'http://192.168.40.29:8080';
+  static const String _baseUrl = 'http://192.168.0.15:8080';
 
   Future<bool> registrarUsuario(Map<String, dynamic> userData) async {
     try {
@@ -19,22 +19,33 @@ class RegistroService {
         userData['clave'] = userData['clave'].toString().trim();
       }
 
-      print("Iniciando registro con los siguientes datos: $userData");
+      final url = '$_baseUrl/api/registro';
+      print("🌐 [LOG APP] Intentando conectar a: $url");
+      print("📦 [LOG APP] Enviando datos: $userData");
 
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/registro'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(userData), // Empaquetamos los datos ya limpios
-      );
+        body: jsonEncode(userData),
+      ).timeout(const Duration(seconds: 10));
+
+      print("📡 [LOG APP] Respuesta recibida: Código ${response.statusCode}");
+      print("📋 [LOG APP] Cuerpo: ${response.body}");
 
       final resBody = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         print("✅ ¡Registro exitoso!: ${resBody['mensaje']}");
 
+        // Unificamos datos con el ID generado por el servidor
+        final Map<String, dynamic> sessionData = {
+          ...userData,
+          'id': resBody['id'] ?? 0,
+        };
+
         // Guardamos los datos de sesión localmente
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user', jsonEncode(userData));
+        await prefs.setString('user', jsonEncode(sessionData));
 
         return true;
       } else {
@@ -43,9 +54,10 @@ class RegistroService {
         print("Mensaje: ${resBody['error']}");
         return false;
       }
-    } catch (e) {
-      print("❌ ERROR GENERAL EN EL REGISTRO:");
-      print(e.toString());
+    } catch (e, stack) {
+      print("❌ [LOG APP] ERROR CRÍTICO EN EL REGISTRO:");
+      print("Mensaje: $e");
+      print("Ruta del error (Stack): $stack");
       return false;
     }
   }

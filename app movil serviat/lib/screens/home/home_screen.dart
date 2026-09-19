@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/solicitud_model.dart';
 import '../../services/solicitud_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -182,12 +183,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _cerrarSesion() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cierre de sesión pendiente de conectar'),
-      ),
-    );
+  void _cerrarSesion() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user');
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    }
   }
 
   Widget _dashboard() {
@@ -741,111 +742,221 @@ class _HomeScreenState extends State<HomeScreen> {
       itemCount: filtradas.length,
       itemBuilder: (context, index) {
         final s = filtradas[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
+        final String initial = s.nombreCliente.isNotEmpty ? s.nombreCliente[0].toUpperCase() : "C";
+        final Color statusColor = _getEstadoColor(s.estado);
+        
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.only(bottom: 20),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x0A000000),
-                blurRadius: 5,
+                color: statusColor.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  s.nombreCliente,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  s.fecha,
-                  style: const TextStyle(fontSize: 8, color: Colors.grey),
-                ),
-              ],
+            border: Border.all(
+              color: statusColor.withValues(alpha: 0.1),
+              width: 1.5,
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  '${s.equipo} - ${s.marca}',
-                  style: const TextStyle(fontSize: 10),
-                ),
-                Text(
-                  s.direccion,
-                  style: const TextStyle(fontSize: 9, color: Colors.grey),
-                ),
-                const SizedBox(height: 6),
-                Row(
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () {}, 
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getEstadoColor(s.estado).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        s.estado,
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: _getEstadoColor(s.estado),
-                          fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initial,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.nombreCliente,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1F2937),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              _buildStatusBadge(s.estado, statusColor),
+                            ],
+                          ),
+                        ),
+                        _buildActionMenu(s),
+                      ],
                     ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E7EB)),
+                    ),
+                    _detailRow(Icons.auto_awesome_outlined, "Equipo", s.equipo, statusColor),
+                    const SizedBox(height: 12),
+                    _detailRow(Icons.pin_drop_outlined, "Dirección", s.direccion, Colors.blueGrey),
+                    const SizedBox(height: 12),
+                    _detailRow(Icons.calendar_month_outlined, "Fecha", s.fecha, Colors.grey),
                   ],
                 ),
-              ],
-            ),
-            trailing: PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, size: 18),
-              onSelected: (val) {
-                if (val == 'eliminar') {
-                  _confirmarEliminacion(s.id);
-                } else {
-                  _cambiarEstado(s.id, val);
-                }
-              },
-              itemBuilder: (ctx) => [
-                const PopupMenuItem(
-                  value: 'Pendiente',
-                  child: Text('Marcar como Pendiente', style: TextStyle(fontSize: 10)),
-                ),
-                const PopupMenuItem(
-                  value: 'En Proceso',
-                  child: Text('Marcar como En Proceso', style: TextStyle(fontSize: 10)),
-                ),
-                const PopupMenuItem(
-                  value: 'Completado',
-                  child: Text('Marcar como Completado', style: TextStyle(fontSize: 10)),
-                ),
-                const PopupMenuItem(
-                  value: 'Cancelado',
-                  child: Text('Marcar como Cancelado', style: TextStyle(fontSize: 10)),
-                ),
-                const PopupMenuItem(
-                  value: 'eliminar',
-                  child: Text(
-                    'Eliminar solicitud',
-                    style: TextStyle(fontSize: 10, color: Colors.red),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildActionMenu(Solicitud s) {
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.more_horiz, color: Color(0xFF4B5563), size: 20),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 10,
+      onSelected: (val) {
+        if (val == 'eliminar') {
+          _confirmarEliminacion(s.id);
+        } else {
+          _cambiarEstado(s.id, val);
+        }
+      },
+      itemBuilder: (ctx) => [
+        _menuItem('Pendiente', '⏳'),
+        _menuItem('En Proceso', '⚙️'),
+        _menuItem('Completado', '✅'),
+        _menuItem('Cancelado', '❌'),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'eliminar',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+              SizedBox(width: 10),
+              Text('Eliminar', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(String value, String emoji) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color.withValues(alpha: 0.7)),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: Colors.grey[400],
+                letterSpacing: 1.0,
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusBadge(String estado, Color color) {
+    IconData icon;
+    String label = estado;
+
+    switch (estado) {
+      case 'Pendiente':
+        icon = Icons.hourglass_empty_rounded;
+        break;
+      case 'En Proceso':
+        icon = Icons.sync_rounded;
+        break;
+      case 'Completado':
+        icon = Icons.check_circle_outline_rounded;
+        break;
+      default:
+        icon = Icons.cancel_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 9,
+              color: color,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
