@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:supabase/supabase.dart';
+import 'email_service.dart';
 
 class AuthApi {
   
@@ -12,6 +13,8 @@ class AuthApi {
       authFlowType: AuthFlowType.implicit,
     ),
   );
+
+  final EmailService emailService = EmailService();
 
 Router get router {
     final router = Router();
@@ -97,9 +100,24 @@ Router get router {
 
       print("✅ Perfil guardado exitosamente con el ID numérico: $idUsuarioGenerado");
 
+      // 5. ENVIAR CORREO SI ES ADMINISTRADOR (3) O TÉCNICO (2)
+      final int rolId = body['rol'] ?? 1;
+      print("🎭 Rol detectado para email: $rolId");
+
+      if (rolId == 2 || rolId == 3) {
+        print("📨 [AUTH] Disparando envío de credenciales por correo...");
+        emailService.enviarCredenciales(email!, clave!, rolId).catchError((e) {
+          print("🚨 Error asíncrono enviando correo: $e");
+        });
+      } else {
+        print("ℹ️ [AUTH] Usuario es Cliente (Rol 1), no se envía correo de credenciales.");
+      }
+
       return Response.ok(
         json.encode({
           "mensaje": "Usuario registrado con éxito",
+          "id": idUsuarioGenerado, // 👈 Devolvemos el ID real para el frontend
+          "id_roles": rolId
         }),
         headers: {
           'Content-Type': 'application/json',

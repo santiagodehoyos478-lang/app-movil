@@ -1,5 +1,6 @@
-# Tareas de Diagnóstico de Registro
+# Tareas de Notificación de Credenciales por Correo
 
-- [ ] Añadir logs de URL en `lib/core/network/api_client.dart`.
-- [ ] Añadir validación de conexión a base de datos en `lib/core/network/api_solicitud.dart`.
-- [ ] Verificar logs en la consola al intentar registrar.
+- [x] Configurar constantes SMTP en `lib/core/constants/app_credenciales.dart`.
+- [x] Crear el servicio de correo en `lib/core/network/email_service.dart`.
+- [x] Integrar el envío de correos en `lib/core/network/auth_api.dart`.
+- [x] Verificar el flujo de registro con envío de correo.

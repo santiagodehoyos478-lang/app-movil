@@ -5,6 +5,8 @@ import 'package:shelf_router/shelf_router.dart';
 // Importamos tu archivo normal, sin prefijos
 import 'auth_api.dart';
 import 'solicitud_api.dart';
+import 'admin_api.dart';
+import 'tecnico_api.dart';
 
 Middleware corsHeaders() {
   const headers = {
@@ -15,6 +17,7 @@ Middleware corsHeaders() {
 
   return (Handler innerHandler) {
     return (Request request) async {
+      print("📡 [LOG SERVIDOR] Petición entrante: ${request.method} ${request.url}");
       if (request.method == 'OPTIONS') {
         return Response.ok('', headers: headers);
       }
@@ -25,14 +28,18 @@ Middleware corsHeaders() {
 }
 
 void main() async {
-  // 1. Instanciamos tu clase AuthApi
+  // 1. Instanciamos tus clases
   final authApi = AuthApi();
   final solicitudApi = SolicitudApi();
+  final adminApi = AdminApi();
+  final tecnicoApi = TecnicoApi();
 
   // 2. Combinamos las rutas en un router principal
   final router = Router()
     ..mount('/', solicitudApi.router.call)
-    ..mount('/', authApi.router.call); //  Usamos la instancia de tu clase
+    ..mount('/', authApi.router.call)
+    ..mount('/', adminApi.router.call)
+    ..mount('/', tecnicoApi.router.call); // Rutas de técnico activadas
 
   final handler = Pipeline()
       .addMiddleware(logRequests())

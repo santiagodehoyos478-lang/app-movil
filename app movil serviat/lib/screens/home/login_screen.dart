@@ -46,7 +46,16 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+        // Redirección inteligente según el Rol al iniciar sesión
+        final int roleId = response['id_roles'] ?? 1;
+        String rutaDestino = '/';
+        if (roleId == 2) {
+          rutaDestino = '/dana'; // Panel del Técnico
+        } else if (roleId == 3) {
+          rutaDestino = '/dashboard'; // Panel del Administrador
+        }
+
+        Navigator.pushNamedAndRemoveUntil(context, rutaDestino, (route) => false);
       }
     } catch (e) {
       setState(() {

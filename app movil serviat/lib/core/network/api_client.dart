@@ -7,7 +7,7 @@ class ApiClient {
 
   // 👇 Cambia esto para que apunte a localhost
   const ApiClient({
-    this.baseUrl = 'http://192.168.40.29:8080/api',
+    this.baseUrl = 'http://192.168.0.15:8080/api',
   });
 
   Future<dynamic> get(String endpoint) async {
