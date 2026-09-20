@@ -23,6 +23,9 @@ Router get router {
     router.post('/api/login', _loginUsuario);
     router.post('/api/recuperar-clave', _recuperarClave);
     router.post('/api/actualizar-clave', _actualizarClave); 
+    
+    // Nueva ruta para que el admin cree usuarios
+    router.post('/api/admin/crear-usuario', _registrarUsuarioPorAdmin); 
 
     return router;
   }
@@ -47,6 +50,15 @@ Router get router {
       if (email == null || clave == null || email.isEmpty || clave.isEmpty) {
         return Response.badRequest(
           body: json.encode({"error": "Faltan credenciales: el email o la clave son inválidos o están vacíos."}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      // 🛑 SEGURIDAD: El registro público SOLO permite Clientes (Rol 1)
+      final int rolId = body['rol'] ?? 1;
+      if (rolId != 1) {
+        return Response.forbidden(
+          json.encode({"error": "Solo se permite el registro público de clientes. Administradores y Técnicos deben ser creados por el administrador principal."}),
           headers: {'Content-Type': 'application/json'},
         );
       }
@@ -101,7 +113,6 @@ Router get router {
       print("✅ Perfil guardado exitosamente con el ID numérico: $idUsuarioGenerado");
 
       // 5. ENVIAR CORREO SI ES ADMINISTRADOR (3) O TÉCNICO (2)
-      final int rolId = body['rol'] ?? 1;
       print("🎭 Rol detectado para email: $rolId");
 
       if (rolId == 2 || rolId == 3) {
@@ -134,6 +145,75 @@ Router get router {
         headers: {
           'Content-Type': 'application/json',
         },
+      );
+    }
+  }
+
+  // REGISTRO POR ADMINISTRADOR (Permite roles 2 y 3)
+  Future<Response> _registrarUsuarioPorAdmin(Request request) async {
+    print("🛠️ Administrador intentando crear nuevo usuario...");
+
+    try {
+      final payload = await request.readAsString();
+      final Map<String, dynamic> body = json.decode(payload);
+
+      final String? email = body['email']?.toString().trim();
+      final String? clave = body['clave']?.toString().trim();
+      final int rolId = body['rol'] ?? 2; // Por defecto Técnico
+
+      if (email == null || clave == null || email.isEmpty || clave.isEmpty) {
+        return Response.badRequest(
+          body: json.encode({"error": "Datos incompletos para crear el usuario."}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      // 1. Registro en Auth
+      final authResponse = await supabase.auth.signUp(
+        email: email,
+        password: clave, 
+      );
+
+      final user = authResponse.user;
+      if (user == null) throw Exception("Error al crear cuenta en Supabase Auth");
+
+      // 2. Guardar en tabla 'usuario'
+      final usuarioInsertado = await supabase.from('usuario').insert({
+        'auth_id': user.id, 
+        'nombre_1': body['nombre_1'] ?? 'Usuario',
+        'apellido_1': body['apellido_1'] ?? 'Nuevo',
+        'tipo_documento': body['tipo_documento'] ?? 'CC',
+        'documento': body['documento'] ?? user.id.substring(0, 8),
+        'clave': clave, 
+        'id_roles': rolId,
+        'fecha_nacimiento': body['fecha_nacimiento'] ?? '2000-01-01',
+      }).select().single(); 
+
+      final int idUsuarioGenerado = usuarioInsertado['id_usuario'];
+
+      // 3. Relaciones extra
+      await supabase.from('correo_electronico').insert({
+        'direccion_email': email,
+        'tipo': 'trabajo',
+        'id_usuario': idUsuarioGenerado, 
+      });
+
+      print("✅ Usuario creado por admin: $email con ID: $idUsuarioGenerado");
+
+      // 4. ENVÍO DE CORREO (Obligatorio aquí)
+      emailService.enviarCredenciales(email, clave, rolId).catchError((e) {
+        print("🚨 Error enviando correo desde admin: $e");
+      });
+
+      return Response.ok(
+        json.encode({"mensaje": "Usuario creado y credenciales enviadas."}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      print("❌ Error en creación por admin: $e");
+      return Response.internalServerError(
+        body: json.encode({"error": e.toString()}),
+        headers: {'Content-Type': 'application/json'},
       );
     }
   }

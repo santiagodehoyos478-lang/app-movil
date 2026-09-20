@@ -1,48 +1,48 @@
-# Plan de Notificación de Credenciales por Correo
+# Plan de Control de Acceso y Gestión de Usuarios por Administrador
 
-Este plan permitirá que, tras el registro exitoso de un **Administrador** o **Técnico**, el sistema envíe automáticamente un correo electrónico al usuario con sus credenciales (correo y contraseña) para que pueda iniciar sesión.
+Este plan restringe el acceso inicial a los paneles de Administrador y Técnico a correos específicos y permite al administrador principal gestionar la creación de nuevos miembros del equipo.
 
-## Consideraciones de Seguridad
-> [!WARNING]
-> Enviar contraseñas en texto plano por correo electrónico es una práctica de riesgo. Se recomienda que, tras el primer inicio de sesión, el sistema obligue al usuario a cambiar su contraseña. Sin embargo, se procederá según lo solicitado.
-
-## Cambios Propuestos
-
-### 1. Backend (Servidor Dart/Shelf)
-
-#### [NEW] [email_service.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/core/network/email_service.dart)
-- Se creará una clase `EmailService` que utilice el paquete `mailer`.
-- Implementará el método `enviarCredenciales(String email, String password, int rolId)` para enviar el correo personalizado.
-- **Configuración Requerida:** El usuario deberá proporcionar sus credenciales SMTP (servidor, puerto, usuario, contraseña) en `AppConstants`.
-
-#### [MODIFY] [auth_api.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/core/network/auth_api.dart)
-- Se instanciará `EmailService`.
-- En el método `_registrarUsuario`, tras la inserción exitosa en Supabase:
-  - Se verificará si el `id_rol` es **2 (Técnico)** o **3 (Administrador)**.
-  - Si se cumple la condición, se llamará a `emailService.enviarCredenciales` pasando el email, la clave en texto plano (antes de ser encriptada) y el rol.
-
-#### [MODIFY] [app_credenciales.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/core/constants/app_credenciales.dart)
-- Se añadirán las constantes necesarias para el servidor SMTP:
-  - `smtpHost`
-  - `smtpPort`
-  - `smtpUser`
-  - `smtpPass`
+## Reglas de Negocio
+1.  **Administrador Raíz:** Solo `dianav@gmail.com` tiene acceso inicial al panel de administración.
+2.  **Técnico Raíz:** Solo `antonellav@gmail.com` tiene acceso inicial al panel técnico.
+3.  **Registro Público:** Se deshabilitará la opción de registrarse como "Administrador" o "Técnico" desde la pantalla de registro normal. Ahora solo se podrán registrar como "Clientes".
+4.  **Gestión de Equipo:** El Administrador Raíz tendrá una nueva sección para crear otros administradores y técnicos, enviándoles sus credenciales por correo automáticamente.
 
 ---
 
-## Requerimiento para el Usuario
-> [!IMPORTANT]
-> Para que el sistema pueda enviar correos, necesito que me proporciones (o tú mismo llenes en el archivo `app_credenciales.dart`) los datos de un servidor de correo (ej. Gmail, SendGrid, Outlook, Mailtrap). Si usas Gmail, recuerda que debes generar una "Contraseña de aplicación".
+## Cambios Propuestos
+
+### 1. Frontend (App Móvil)
+
+#### [MODIFY] [registro_screen.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/screens/home/registro_screen.dart)
+- Eliminar las opciones "Soy Técnico" y "Soy Administrador" del menú desplegable de roles.
+- El registro público quedará exclusivo para **Clientes**.
+
+#### [MODIFY] [home_screen.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/screens/home/home_screen.dart)
+- Añadir un nuevo botón en la barra superior o una sección en el panel llamada **"Gestionar Equipo"**.
+- Implementar un formulario flotante (Dialog) para ingresar: Nombre, Email, Contraseña y Rol (Técnico/Admin).
+- Este formulario llamará al servidor para crear el usuario y enviar el correo.
+
+#### [MODIFY] [login_screen.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/screens/home/login_screen.dart)
+- Añadir una validación extra: Si alguien intenta entrar como Admin/Técnico con un correo no autorizado (que no sea el raíz o uno creado por el raíz), se le denegará el acceso.
+
+### 2. Backend (Servidor Dart)
+
+#### [MODIFY] [auth_api.dart](file:///C:/Users/nanit/app-movil/app%20movil%20serviat/lib/core/network/auth_api.dart)
+- **Restricción de Registro:** El endpoint `/api/registro` ahora rechazará cualquier petición que intente crear un rol de Admin (3) o Técnico (2).
+- **Nuevo Endpoint `/api/admin/crear-usuario`:**
+    - Solo aceptará peticiones si vienen del panel de administración.
+    - Creará el usuario en Supabase Auth y en la tabla `usuario`.
+    - Disparará el envío del correo con las credenciales inmediatamente.
 
 ---
 
 ## Plan de Verificación
 
-1. **Prueba de Registro de Técnico:**
-   - Registrar un nuevo usuario con el rol de "Técnico".
-   - Verificar en la consola del servidor el log de envío de correo.
-   - Confirmar la recepción del correo en la bandeja de entrada del usuario.
-2. **Prueba de Registro de Administrador:**
-   - Repetir el proceso con el rol de "Administrador".
-3. **Verificación de Rol Cliente:**
-   - Registrar un "Cliente" y confirmar que **NO** se le envía correo de credenciales (ya que él mismo las crea).
+1. **Prueba de Registro:** Intentar registrarse desde la app y confirmar que ya no aparecen las opciones de Técnico/Admin.
+2. **Prueba de Acceso Raíz:** Iniciar sesión con `dianav@gmail.com` y confirmar que puede ver la opción de "Gestionar Equipo".
+3. **Prueba de Creación:** Crear un nuevo técnico desde el panel de admin y verificar que le llegue el correo con su clave.
+4. **Prueba de Login Invitado:** Iniciar sesión con el nuevo técnico creado y confirmar que puede entrar a su panel.
+
+> [!IMPORTANT]
+> Los correos raíz `dianav@gmail.com` y `antonellav@gmail.com` ya deben existir en tu base de datos con sus respectivos roles asignados para que el sistema los reconozca al iniciar.
