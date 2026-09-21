@@ -267,8 +267,6 @@ class _RegistroScreenState extends State<RegistroScreen> {
             ),
             items: const [
               DropdownMenuItem(value: '1', child: Text('Soy Cliente', style: TextStyle(fontWeight: FontWeight.bold))),
-              DropdownMenuItem(value: '2', child: Text('Soy Técnico', style: TextStyle(fontWeight: FontWeight.bold))),
-              DropdownMenuItem(value: '3', child: Text('Soy Administrador', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             onChanged: (val) => setState(() => _rol = val!),
           ),
