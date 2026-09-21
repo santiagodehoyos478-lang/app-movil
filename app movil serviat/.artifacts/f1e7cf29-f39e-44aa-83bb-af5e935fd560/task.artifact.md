@@ -1,6 +1,12 @@
-# Tareas de Notificación de Credenciales por Correo
+# Tareas de Control de Acceso y Gestión de Equipo
 
-- [x] Configurar constantes SMTP en `lib/core/constants/app_credenciales.dart`.
-- [x] Crear el servicio de correo en `lib/core/network/email_service.dart`.
-- [x] Integrar el envío de correos en `lib/core/network/auth_api.dart`.
-- [x] Verificar el flujo de registro con envío de correo.
+## Backend (Dart/Shelf)
+- [x] Restringir registro público de roles Admin/Técnico en `auth_api.dart`.
+- [x] Implementar endpoint `/api/admin/crear-usuario` en `auth_api.dart`.
+- [x] Asegurar envío de correo en la creación por administrador.
+
+## Frontend (Flutter)
+- [x] Eliminar roles privilegiados del registro público en `registro_screen.dart`.
+- [x] Añadir interfaz de "Gestionar Equipo" en el panel de administrador (`home_screen.dart`).
+- [x] Conectar la creación de usuarios con el nuevo endpoint del backend.
+- [x] Verificar que solo `dianav@gmail.com` (u otros autorizados) vean la opción de gestión.

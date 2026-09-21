@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../models/solicitud_model.dart';
 import '../../services/solicitud_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../../core/network/api_client.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,6 +17,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Solicitud> _solicitudes = [];
   bool _cargando = false;
   bool mostrarReservas = false;
+  String? _currentUserEmail;
+  final ApiClient _apiClient = const ApiClient();
 
   final TextEditingController _searchController =
       TextEditingController();
@@ -24,7 +28,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUserSession();
     _cargarSolicitudes();
+  }
+
+  Future<void> _loadUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString('user');
+    if (userStr != null) {
+      final userData = jsonDecode(userStr);
+      setState(() {
+        _currentUserEmail = userData['email'];
+      });
+    }
   }
 
   Future<void> _cargarSolicitudes() async {
@@ -140,6 +156,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Row(
             children: [
+              if (_currentUserEmail == 'dianav@gmail.com')
+                _topButton(
+                  Icons.person_add_alt_1,
+                  _showGestionarEquipoDialog,
+                  tooltip: "Gestionar Equipo",
+                ),
+              const SizedBox(width: 9),
               _topButton(
                 Icons.refresh,
                 _cargarSolicitudes,
@@ -158,25 +181,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _topButton(
     IconData icon,
-    VoidCallback onPressed,
-  ) {
+    VoidCallback onPressed, {
+    String? tooltip,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(30),
-        child: Container(
-          width: 35,
-          height: 35,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 18,
+        child: Tooltip(
+          message: tooltip ?? "",
+          child: Container(
+            width: 35,
+            height: 35,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
         ),
       ),
@@ -1056,6 +1083,173 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showGestionarEquipoDialog() {
+    final name1Controller = TextEditingController();
+    final apellido1Controller = TextEditingController();
+    final documentoController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final fechaNacController = TextEditingController();
+    String selectedRole = '2'; // Técnico por defecto
+    String selectedDocType = 'CC';
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.person_add, color: Color(0xFF2448B5)),
+              SizedBox(width: 10),
+              Text("Registrar Nuevo Miembro", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Ingresa los datos para crear un nuevo perfil de equipo.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 20),
+                _dialogField(name1Controller, "Nombre", Icons.person_outline),
+                const SizedBox(height: 10),
+                _dialogField(apellido1Controller, "Apellido", Icons.badge_outlined),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<String>(
+                        value: selectedDocType,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'CC', child: Text('C.C.')),
+                          DropdownMenuItem(value: 'TI', child: Text('T.I.')),
+                          DropdownMenuItem(value: 'CE', child: Text('C.E.')),
+                        ],
+                        onChanged: (val) => setDialogState(() => selectedDocType = val!),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: _dialogField(documentoController, "Documento", Icons.contact_page_outlined, type: TextInputType.number),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _dialogField(emailController, "Correo Electrónico", Icons.email_outlined, type: TextInputType.emailAddress),
+                const SizedBox(height: 10),
+                _dialogField(passwordController, "Contraseña Temporal", Icons.lock_outline, obscure: true),
+                const SizedBox(height: 10),
+                // 📅 NUEVO CAMPO: Fecha de Nacimiento
+                TextField(
+                  controller: fechaNacController,
+                  readOnly: true,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: "Fecha Nacimiento (AAAA-MM-DD)",
+                    prefixIcon: const Icon(Icons.calendar_today, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onTap: () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime(2000),
+                      firstDate: DateTime(1930),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        fechaNacController.text = picked.toString().split(' ')[0];
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 15),
+                const Align(alignment: Alignment.centerLeft, child: Text("Rol en el sistema:", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '2', child: Text('Técnico')),
+                    DropdownMenuItem(value: '3', child: Text('Administrador')),
+                  ],
+                  onChanged: (val) => setDialogState(() => selectedRole = val!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(context),
+              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving ? null : () async {
+                if (emailController.text.isEmpty || passwordController.text.isEmpty || fechaNacController.text.isEmpty) {
+                  return;
+                }
+                setDialogState(() => isSaving = true);
+                try {
+                  await _apiClient.post('/admin/crear-usuario', body: {
+                    'nombre_1': name1Controller.text,
+                    'apellido_1': apellido1Controller.text,
+                    'tipo_documento': selectedDocType,
+                    'documento': documentoController.text,
+                    'email': emailController.text,
+                    'clave': passwordController.text,
+                    'rol': int.parse(selectedRole),
+                    'fecha_nacimiento': fechaNacController.text,
+                  });
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(content: Text('✅ Usuario creado y correo enviado.'), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(content: Text('❌ Error: ${e.toString()}'), backgroundColor: Colors.red),
+                    );
+                  }
+                } finally {
+                  setDialogState(() => isSaving = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE06B6B), foregroundColor: Colors.white),
+              child: isSaving ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text("Crear Usuario"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dialogField(TextEditingController controller, String label, IconData icon, {bool obscure = false, TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: type,
+      style: const TextStyle(fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 10),
       ),
     );
   }
