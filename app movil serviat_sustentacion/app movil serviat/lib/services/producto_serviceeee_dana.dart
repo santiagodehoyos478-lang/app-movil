@@ -24,10 +24,12 @@ class ProductoDanaService {
     }
   }
 
-  Future<bool> aceptarSolicitud(String id) async {
+  Future<bool> aceptarSolicitud(String id, String tecnicoId) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/tecnico/solicitud/$id/aceptar'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'tecnico_id': tecnicoId}),
       );
       return response.statusCode == 200;
     } catch (e) {

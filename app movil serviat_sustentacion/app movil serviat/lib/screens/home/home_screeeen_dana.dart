@@ -19,6 +19,8 @@ class _HomeDanaScreenState extends State<HomeDanaScreen> {
   List<ProductoDanaModel> solicitudes = [];
   bool cargando = true;
 
+  String _currentTecnicoId = '1';
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +39,7 @@ class _HomeDanaScreenState extends State<HomeDanaScreen> {
       tecnicoId = (userData['id_usuario'] ?? userData['id'] ?? '1').toString();
     }
 
+    _currentTecnicoId = tecnicoId;
     final resultado = await service.obtenerProductos(tecnicoId);
 
     setState(() {
@@ -46,19 +49,17 @@ class _HomeDanaScreenState extends State<HomeDanaScreen> {
   }
 
   Future<void> aceptarSolicitud(ProductoDanaModel solicitud) async {
-    final exito = await service.aceptarSolicitud(solicitud.id);
+    final exito = await service.aceptarSolicitud(solicitud.id, _currentTecnicoId);
     if (!mounted) return;
 
     if (exito) {
-      setState(() {
-        solicitud.estado = 'Aceptada';
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${solicitud.numeroSolicitud} aceptada correctamente'),
           backgroundColor: Colors.green,
         ),
       );
+      cargarSolicitudes();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -74,15 +75,13 @@ class _HomeDanaScreenState extends State<HomeDanaScreen> {
     if (!mounted) return;
 
     if (exito) {
-      setState(() {
-        solicitud.estado = 'Rechazada';
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${solicitud.numeroSolicitud} rechazada'),
           backgroundColor: Colors.red,
         ),
       );
+      cargarSolicitudes();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

@@ -42,13 +42,27 @@ class TecnicoApi {
     String id,
   ) async {
     try {
-      print("🔎 [TECNICO] Consultando solicitudes disponibles (Completadas por Admin)...");
+      print("🔎 [TECNICO] Consultando solicitudes para técnico ID: $id (Disponibles o asignadas)...");
 
-      // 1. Buscamos solicitudes en estado 3 (Listas para asignar)
-      final solicitudesData = await supabase
+      // 1. Buscamos todas las solicitudes en estado 2 (En Proceso) o 3 (Completado/Disponible)
+      final allSolicitudes = await supabase
           .from('solicitud')
           .select()
-          .eq('id_estado_solicitud', 3);
+          .or('id_estado_solicitud.eq.2,id_estado_solicitud.eq.3');
+
+      // Filtrar en memoria para asegurar máxima compatibilidad y evitar errores de sintaxis o de conversión en Postgrest
+      final solicitudesData = (allSolicitudes as List).where((row) {
+        final int estado = row['id_estado_solicitud'] is int 
+            ? row['id_estado_solicitud'] 
+            : int.tryParse(row['id_estado_solicitud']?.toString() ?? '3') ?? 3;
+            
+        if (estado == 3) return true; // Disponible para cualquier técnico
+        if (estado == 2) {
+          // Solo si está asignada a este técnico específico
+          return row['usuario_id_tecnico']?.toString() == id;
+        }
+        return false;
+      }).toList();
 
       // 2. Obtener nombres de clientes y equipos con nombres de columna corregidos
       final usuariosData = await supabase.from('usuario').select('id_usuario, nombre_1, apellido_1');
@@ -74,12 +88,16 @@ class TecnicoApi {
           nombreCliente = "${cliente['nombre_1'] ?? ''} ${cliente['apellido_1'] ?? ''}".trim();
         }
 
+        final int idEstado = row['id_estado_solicitud'] is int 
+            ? row['id_estado_solicitud'] 
+            : int.tryParse(row['id_estado_solicitud']?.toString() ?? '3') ?? 3;
+
         return {
           'id': row['id_solicitud'],
           'cliente': nombreCliente,
           'descripcion': row['descripcion'] ?? 'Sin descripción',
           'fecha': row['fecha_solicitud']?.toString() ?? '',
-          'estado': row['id_estado_solicitud'] == 2 ? 'En Proceso' : 'Disponible',
+          'estado': idEstado == 2 ? 'Aceptada' : 'Disponible',
           'equipo': equipo?['nombre_equipo'] ?? 'Equipo técnico',
         };
       }).toList();
@@ -109,11 +127,15 @@ class TecnicoApi {
   ) async {
     try {
       print("✅ Aceptando solicitud: $id");
+      
+      final body = json.decode(await request.readAsString());
+      final int? idTecnico = body['tecnico_id'] != null ? int.tryParse(body['tecnico_id'].toString()) : null;
 
       await supabase
           .from('solicitud')
           .update({
             'id_estado_solicitud': 2,
+            if (idTecnico != null) 'usuario_id_tecnico': idTecnico,
           })
           .eq('id_solicitud', int.parse(id));
 

@@ -10,6 +10,9 @@ class AdminApi {
   final SupabaseClient supabase = SupabaseClient(
     AppConstants.supabaseUrl,
     AppConstants.publishable_key,
+    authOptions: const AuthClientOptions(
+      authFlowType: AuthFlowType.implicit,
+    ),
   );
 
   // Servicio de correos para enviar credenciales a los nuevos usuarios

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class RegistroService {
   
-  static const String _baseUrl = 'http://192.168.20.160:8080';
+  static const String _baseUrl = 'http://192.168.0.15:8080';
 
   Future<bool> registrarUsuario(Map<String, dynamic> userData) async {
     try {

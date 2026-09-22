@@ -15,5 +15,5 @@ class AppDanaConstants {
   static const String completado = 'Completado';
   static const String cancelado = 'Cancelado';
 
-  static const String apiBaseUrl = 'http://192.168.20.160:8080/api';
+  static const String apiBaseUrl = 'http://192.168.0.15:8080/api';
 }
