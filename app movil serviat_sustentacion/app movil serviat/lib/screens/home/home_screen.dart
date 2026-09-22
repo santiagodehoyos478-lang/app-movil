@@ -1,0 +1,1256 @@
+import 'package:flutter/material.dart';
+import '../../models/solicitud_model.dart';
+import '../../services/solicitud_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../../core/network/api_client.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final SolicitudService _solicitudService = const SolicitudService();
+  List<Solicitud> _solicitudes = [];
+  bool _cargando = false;
+  bool mostrarReservas = false;
+  String? _currentUserEmail;
+  final ApiClient _apiClient = const ApiClient();
+
+  final TextEditingController _searchController =
+      TextEditingController();
+
+  String filtroActivo = 'Todos';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserSession();
+    _cargarSolicitudes();
+  }
+
+  Future<void> _loadUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString('user');
+    if (userStr != null) {
+      final userData = jsonDecode(userStr);
+      setState(() {
+        _currentUserEmail = userData['email'];
+      });
+    }
+  }
+
+  Future<void> _cargarSolicitudes() async {
+    setState(() => _cargando = true);
+    try {
+      final solicitudes = await _solicitudService.obtenerSolicitudes();
+      setState(() {
+        _solicitudes = solicitudes;
+        _cargando = false;
+      });
+    } catch (e) {
+      setState(() => _cargando = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar solicitudes: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _topBar(),
+            Expanded(
+              child: mostrarReservas
+                  ? _vistaReservas()
+                  : _dashboard(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _topBar() {
+    return Container(
+      height: 76,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF245FC9),
+            Color(0xFF3478DC),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Text(
+                  'A',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AR SERVICIO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'admin',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              if (_currentUserEmail == 'dianav@gmail.com')
+                _topButton(
+                  Icons.person_add_alt_1,
+                  _showGestionarEquipoDialog,
+                  tooltip: "Gestionar Equipo",
+                ),
+              const SizedBox(width: 9),
+              _topButton(
+                Icons.refresh,
+                _cargarSolicitudes,
+              ),
+              const SizedBox(width: 9),
+              _topButton(
+                Icons.logout,
+                _cerrarSesion,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _topButton(
+    IconData icon,
+    VoidCallback onPressed, {
+    String? tooltip,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(30),
+        child: Tooltip(
+          message: tooltip ?? "",
+          child: Container(
+            width: 35,
+            height: 35,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _cerrarSesion() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user');
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    }
+  }
+
+  Widget _dashboard() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 30),
+      child: Column(
+        children: [
+          _statsCard(),
+          const SizedBox(height: 12),
+          _technicianCard(),
+          const SizedBox(height: 12),
+          _reservationsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _statsCard() {
+    final total = _solicitudes.length;
+    final pendientes =
+        _solicitudes.where((s) => s.estado == 'Pendiente').length;
+    final enProceso =
+        _solicitudes.where((s) => s.estado == 'En Proceso').length;
+    final completadas =
+        _solicitudes.where((s) => s.estado == 'Completado').length;
+    final canceladas =
+        _solicitudes.where((s) => s.estado == 'Cancelado').length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 7,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: GridView.count(
+        crossAxisCount: 3,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.15,
+        children: [
+          _stat(
+            Icons.calendar_month,
+            total.toString(),
+            'Total',
+            const Color(0xFF2670DC),
+            const Color(0xFFEEF6FF),
+          ),
+          _stat(
+            Icons.access_time,
+            pendientes.toString(),
+            'Pendientes',
+            const Color(0xFFF2A600),
+            const Color(0xFFFFF7E6),
+          ),
+          _stat(
+            Icons.build,
+            enProceso.toString(),
+            'En Proceso',
+            const Color(0xFF2670DC),
+            const Color(0xFFEEF6FF),
+          ),
+          _stat(
+            Icons.check_circle,
+            completadas.toString(),
+            'Completadas',
+            const Color(0xFF00B878),
+            const Color(0xFFEAF3FA),
+          ),
+          _stat(
+            Icons.cancel,
+            canceladas.toString(),
+            'Canceladas',
+            const Color(0xFFFF4747),
+            const Color(0xFFFFF0F0),
+          ),
+          _stat(
+            Icons.handyman,
+            total.toString(),
+            'Servicios',
+            const Color(0xFF5266C8),
+            const Color(0xFFEEF0FF),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stat(
+    IconData icon,
+    String number,
+    String text,
+    Color iconColor,
+    Color iconBackground,
+  ) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(
+          right: BorderSide(
+            color: Color(0xFFEDF0F4),
+          ),
+          bottom: BorderSide(
+            color: Color(0xFFEDF0F4),
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 17,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            number,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 8,
+              color: Color(0xFF7B8492),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _technicianCard() {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 7,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1760CE),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const Icon(
+              Icons.person,
+              color: Colors.white,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Fabio Alexander Rojas Lara',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF26364A),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Técnico especializado',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Color(0xFF7D8794),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F8ED),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.phone,
+                  size: 13,
+                  color: Color(0xFF16A05D),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  '3005635595',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF16A05D),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reservationsCard() {
+    final recientes = _solicitudes.take(3).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 7,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Color(0xFFEDF0F4),
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Reservas Recientes',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF26364A),
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      mostrarReservas = true;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Ver todas',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Color(0xFF1458BB),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 14,
+                          color: Color(0xFF1458BB),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_cargando)
+            const SizedBox(
+              height: 96,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (recientes.isEmpty)
+            const SizedBox(
+              height: 96,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.calendar_month,
+                    size: 31,
+                    color: Color(0xFFDCE1E8),
+                  ),
+                  SizedBox(height: 7),
+                  Text(
+                    'No hay reservas aún',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Color(0xFF9DA6B2),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recientes.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final s = recientes[index];
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    s.nombreCliente,
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${s.equipo} - ${s.marca}',
+                    style: const TextStyle(fontSize: 9),
+                  ),
+                  trailing: Text(
+                    s.estado,
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: _getEstadoColor(s.estado),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Color _getEstadoColor(String estado) {
+    switch (estado) {
+      case 'Pendiente':
+        return const Color(0xFFF2A600);
+      case 'En Proceso':
+        return const Color(0xFF2670DC);
+      case 'Completado':
+        return const Color(0xFF00B878);
+      case 'Cancelado':
+        return const Color(0xFFFF4747);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _vistaReservas() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 30),
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  mostrarReservas = false;
+                });
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.chevron_left,
+                      size: 15,
+                      color: Color(0xFF1458BB),
+                    ),
+                    Text(
+                      'Volver al panel',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF1458BB),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(
+                color: const Color(0xFFB8C9E8),
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 3,
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.black87,
+              ),
+              decoration: const InputDecoration(
+                icon: Icon(
+                  Icons.search,
+                  size: 17,
+                  color: Color(0xFF9CA7B5),
+                ),
+                hintText: 'Buscar cliente, servicio...',
+                hintStyle: TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF8D96A3),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 9),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _filter('Todos'),
+                _filter('Pendiente'),
+                _filter('En Proceso'),
+                _filter('Completado'),
+                _filter('Cancelado'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          _listaCompletaReservas(),
+        ],
+      ),
+    );
+  }
+
+  Widget _listaCompletaReservas() {
+    final filtradas = _solicitudes.where((s) {
+      final matchesFiltro =
+          filtroActivo == 'Todos' || s.estado == filtroActivo;
+      final matchesSearch = s.nombreCliente
+              .toLowerCase()
+              .contains(_searchController.text.toLowerCase()) ||
+          s.equipo
+              .toLowerCase()
+              .contains(_searchController.text.toLowerCase());
+      return matchesFiltro && matchesSearch;
+    }).toList();
+
+    if (_cargando) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (filtradas.isEmpty) {
+      return Container(
+        width: double.infinity,
+        height: 153,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x17000000),
+              blurRadius: 7,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 34,
+              color: Color(0xFFE1E5EA),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Sin resultados',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF8F99A7),
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Prueba con otros filtros',
+              style: TextStyle(
+                fontSize: 9,
+                color: Color(0xFFAAB2BD),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: filtradas.length,
+      itemBuilder: (context, index) {
+        final s = filtradas[index];
+        final String initial = s.nombreCliente.isNotEmpty ? s.nombreCliente[0].toUpperCase() : "C";
+        final Color statusColor = _getEstadoColor(s.estado);
+        
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: statusColor.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+            border: Border.all(
+              color: statusColor.withValues(alpha: 0.1),
+              width: 1.5,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () {}, 
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initial,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.nombreCliente,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1F2937),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              _buildStatusBadge(s.estado, statusColor),
+                            ],
+                          ),
+                        ),
+                        _buildActionMenu(s),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E7EB)),
+                    ),
+                    _detailRow(Icons.auto_awesome_outlined, "Equipo", s.equipo, statusColor),
+                    const SizedBox(height: 12),
+                    _detailRow(Icons.pin_drop_outlined, "Dirección", s.direccion, Colors.blueGrey),
+                    const SizedBox(height: 12),
+                    _detailRow(Icons.calendar_month_outlined, "Fecha", s.fecha, Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionMenu(Solicitud s) {
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.more_horiz, color: Color(0xFF4B5563), size: 20),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 10,
+      onSelected: (val) {
+        if (val == 'eliminar') {
+          _confirmarEliminacion(s.id);
+        } else {
+          _cambiarEstado(s.id, val);
+        }
+      },
+      itemBuilder: (ctx) => [
+        _menuItem('Pendiente', '⏳'),
+        _menuItem('En Proceso', '⚙️'),
+        _menuItem('Completado', '✅'),
+        _menuItem('Cancelado', '❌'),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'eliminar',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+              SizedBox(width: 10),
+              Text('Eliminar', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(String value, String emoji) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color.withValues(alpha: 0.7)),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: Colors.grey[400],
+                letterSpacing: 1.0,
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusBadge(String estado, Color color) {
+    IconData icon;
+    String label = estado;
+
+    switch (estado) {
+      case 'Pendiente':
+        icon = Icons.hourglass_empty_rounded;
+        break;
+      case 'En Proceso':
+        icon = Icons.sync_rounded;
+        break;
+      case 'Completado':
+        icon = Icons.check_circle_outline_rounded;
+        break;
+      default:
+        icon = Icons.cancel_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 9,
+              color: color,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _cambiarEstado(int id, String nuevoEstado) async {
+    try {
+      await _solicitudService.actualizarSolicitud(id, estado: nuevoEstado);
+      _cargarSolicitudes();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Estado actualizado correctamente')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmarEliminacion(int id) async {
+    final bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar solicitud?', style: TextStyle(fontSize: 14)),
+        content: const Text('Esta acción no se puede deshacer.', style: TextStyle(fontSize: 12)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      try {
+        await _solicitudService.eliminarSolicitud(id);
+        _cargarSolicitudes();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Solicitud eliminada')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _filter(String text) {
+    final bool activo = filtroActivo == text;
+
+    final count = text == 'Todos'
+        ? _solicitudes.length
+        : _solicitudes.where((s) => s.estado == text).length;
+
+    final label = '$text ($count)';
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 7),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            filtroActivo = text;
+          });
+        },
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: activo ? const Color(0xFFF5F8FC) : Colors.white,
+            border: Border.all(
+              color: activo ? const Color(0xFF245FC9) : const Color(0xFFDCE2E9),
+              width: activo ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: activo ? const Color(0xFF245FC9) : const Color(0xFF394454),
+              fontWeight: activo ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showGestionarEquipoDialog() {
+    final name1Controller = TextEditingController();
+    final apellido1Controller = TextEditingController();
+    final documentoController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final fechaNacController = TextEditingController();
+    String selectedRole = '2'; // Técnico por defecto
+    String selectedDocType = 'CC';
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.person_add, color: Colors.grey),
+              SizedBox(width: 10),
+              Text("Registrar Nuevo Miembro", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Ingresa los datos para crear un nuevo perfil de equipo.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 20),
+                _dialogField(name1Controller, "Nombre", Icons.person_outline),
+                const SizedBox(height: 10),
+                _dialogField(apellido1Controller, "Apellido", Icons.badge_outlined),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<String>(
+                        value: selectedDocType,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'CC', child: Text('C.C.')),
+                          DropdownMenuItem(value: 'TI', child: Text('T.I.')),
+                          DropdownMenuItem(value: 'CE', child: Text('C.E.')),
+                        ],
+                        onChanged: (val) => setDialogState(() => selectedDocType = val!),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: _dialogField(documentoController, "Documento", Icons.contact_page_outlined, type: TextInputType.number),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _dialogField(emailController, "Correo Electrónico", Icons.email_outlined, type: TextInputType.emailAddress),
+                const SizedBox(height: 10),
+                _dialogField(passwordController, "Contraseña Temporal", Icons.lock_outline, obscure: true),
+                const SizedBox(height: 10),
+                // 📅 NUEVO CAMPO: Fecha de Nacimiento
+                TextField(
+                  controller: fechaNacController,
+                  readOnly: true,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: "Fecha Nacimiento (AAAA-MM-DD)",
+                    prefixIcon: const Icon(Icons.calendar_today, size: 18),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onTap: () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime(2000),
+                      firstDate: DateTime(1930),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        fechaNacController.text = picked.toString().split(' ')[0];
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 15),
+                const Align(alignment: Alignment.centerLeft, child: Text("Rol en el sistema:", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '2', child: Text('Técnico')),
+                    DropdownMenuItem(value: '3', child: Text('Administrador')),
+                  ],
+                  onChanged: (val) => setDialogState(() => selectedRole = val!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(context),
+              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving ? null : () async {
+                if (emailController.text.isEmpty || passwordController.text.isEmpty || fechaNacController.text.isEmpty) {
+                  return;
+                }
+                setDialogState(() => isSaving = true);
+                try {
+                  await _apiClient.post('/admin/crear-usuario', body: {
+                    'nombre_1': name1Controller.text,
+                    'apellido_1': apellido1Controller.text,
+                    'tipo_documento': selectedDocType,
+                    'documento': documentoController.text,
+                    'email': emailController.text,
+                    'clave': passwordController.text,
+                    'rol': int.parse(selectedRole),
+                    'fecha_nacimiento': fechaNacController.text,
+                  });
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(content: Text('✅ Usuario creado y correo enviado.'), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(content: Text('❌ Error: ${e.toString()}'), backgroundColor: Colors.red),
+                    );
+                  }
+                } finally {
+                  setDialogState(() => isSaving = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[600], foregroundColor: Colors.white),
+              child: isSaving ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text("Crear Usuario"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dialogField(TextEditingController controller, String label, IconData icon, {bool obscure = false, TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: type,
+      style: const TextStyle(fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+      ),
+    );
+  }
+}
